@@ -3,6 +3,7 @@ import {
   Activity,
   BarChart3,
   BookOpenCheck,
+  ExternalLink,
   Flame,
   LayoutDashboard,
   ListFilter,
@@ -33,6 +34,7 @@ const navItems = [
   { id: "leaderboard", label: "Leaderboard", icon: Trophy },
   { id: "log", label: "Log Problem", icon: Plus },
   { id: "problems", label: "My Problems", icon: BookOpenCheck },
+  { id: "friend-problems", label: "Friend Solved", icon: Swords },
   { id: "challenges", label: "Challenges", icon: Target },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "profile", label: "Profile", icon: User },
@@ -160,6 +162,7 @@ function CompetitionApp({ currentUserId }: { currentUserId: UserId }) {
         {view === "leaderboard" && <Leaderboard />}
         {view === "log" && <LogProblem />}
         {view === "problems" && <MyProblems currentUserId={currentUserId} />}
+        {view === "friend-problems" && <FriendProblems currentUserId={currentUserId} />}
         {view === "challenges" && <Challenges />}
         {view === "analytics" && <Analytics currentUserId={currentUserId} />}
         {view === "profile" && <Profile currentUserId={currentUserId} />}
@@ -251,6 +254,17 @@ function MyProblems({ currentUserId }: { currentUserId: UserId }) {
   const [filter, setFilter] = useState("");
   const filtered = problems.filter((problem) => `${problem.platform} ${problem.difficulty} ${problem.topic} ${problem.name}`.toLowerCase().includes(filter.toLowerCase()));
   return <section className="glass-panel animate-enter rounded-2xl p-5"><div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row"><h3 className="text-2xl font-black">My Problems</h3><label className="flex items-center gap-2 rounded-lg border border-input bg-background/70 px-3"><Search className="size-4 text-muted-foreground" /><input value={filter} onChange={(e) => setFilter(e.target.value)} className="h-10 bg-transparent outline-none" placeholder="Filter platform, topic..." /></label></div><div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="text-muted-foreground"><tr><th className="py-3">Problem</th><th>Platform</th><th>Difficulty</th><th>Topic</th><th>Time</th><th>Date</th></tr></thead><tbody>{filtered.map((problem) => <tr key={problem.id} className="border-t border-border"><td className="py-3 font-semibold">{problem.name}</td><td>{problem.platform}</td><td>{problem.difficulty}</td><td>{problem.topic}</td><td>{problem.timeTaken}m</td><td>{new Date(problem.solvedAt).toLocaleDateString()}</td></tr>)}</tbody></table></div></section>;
+}
+
+function FriendProblems({ currentUserId }: { currentUserId: UserId }) {
+  const { users, problems } = useDsaRivalsStore();
+  const friendId = getFriendId(currentUserId);
+  const friend = users.find((item) => item.id === friendId)!;
+  const solvedByMe = new Set(problems.filter((problem) => problem.userId === currentUserId).map((problem) => problem.name.toLowerCase()));
+  const friendProblems = problems.filter((problem) => problem.userId === friendId);
+  const [filter, setFilter] = useState("");
+  const filtered = friendProblems.filter((problem) => `${problem.platform} ${problem.difficulty} ${problem.topic} ${problem.name}`.toLowerCase().includes(filter.toLowerCase()));
+  return <section className="glass-panel animate-enter rounded-2xl p-5"><div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row"><div><h3 className="text-2xl font-black">{friend.name}'s Solved Problems</h3><p className="mt-1 text-sm text-muted-foreground">See what your friend solved and choose your next target.</p></div><label className="flex items-center gap-2 rounded-lg border border-input bg-background/70 px-3"><Search className="size-4 text-muted-foreground" /><input value={filter} onChange={(e) => setFilter(e.target.value)} className="h-10 bg-transparent outline-none" placeholder="Filter friend problems..." /></label></div><div className="grid gap-3">{filtered.map((problem) => { const alreadySolved = solvedByMe.has(problem.name.toLowerCase()); return <div key={problem.id} className="rounded-xl border border-border bg-card/80 p-4"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><p className="text-lg font-bold">{problem.name}</p><p className="mt-1 text-sm text-muted-foreground">{problem.platform} · {problem.topic} · {problem.difficulty} · {problem.timeTaken}m</p></div><div className="flex items-center gap-2"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${alreadySolved ? "bg-primary/15 text-primary" : "bg-accent/15 text-accent"}`}>{alreadySolved ? "You solved it" : "Try this next"}</span>{problem.link && <a href={problem.link} target="_blank" rel="noreferrer" className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-secondary text-foreground transition hover:bg-accent hover:text-accent-foreground" aria-label={`Open ${problem.name}`}><ExternalLink className="size-4" /></a>}</div></div><p className="mt-3 text-xs text-muted-foreground">Solved on {new Date(problem.solvedAt).toLocaleDateString()}</p></div>; })}</div></section>;
 }
 
 function Challenges() {
