@@ -16,6 +16,10 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+          rival:
+            "bg-primary text-primary-foreground shadow-glow hover:bg-primary/90 hover:shadow-card active:scale-[0.98]",
+          ember:
+            "bg-accent text-accent-foreground shadow-sm hover:bg-accent/90 active:scale-[0.98]",
       },
       size: {
         default: "h-9 px-4 py-2",
