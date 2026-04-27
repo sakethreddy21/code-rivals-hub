@@ -9,8 +9,17 @@ export type Profile = {
   display_name: string;
   emoji: string;
   title: string;
-  rival_user_id: string | null;
+  mutual_user_id: string | null;
   created_at: string;
+};
+
+export type MutualUser = {
+  id: string;
+  name: string;
+  emoji: string;
+  title: string;
+  username: string;
+  mutualUserId: string | null;
 };
 
 export type Problem = {
@@ -34,14 +43,7 @@ export type Challenge = {
   reward: string;
 };
 
-export type RivalUser = {
-  id: string;
-  name: string;
-  emoji: string;
-  title: string;
-  username: string;
-  rivalUserId: string | null;
-};
+export type StreakStatus = "Safe" | "Caution" | "Critical";
 
 export type AppData = {
   profiles: Profile[];

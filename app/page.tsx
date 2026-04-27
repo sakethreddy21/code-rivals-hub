@@ -33,7 +33,7 @@ import {
   Challenge, 
   Problem, 
   Profile as ProfileType, 
-  RivalUser 
+  MutualUser 
 } from "@/types/rivals";
 import { 
   difficulties, 
@@ -57,6 +57,7 @@ const navItems = [
   { id: "challenges", label: "Challenges", icon: Target },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "hall-of-fame", label: "Hall of Fame", icon: Medal },
+  { id: "requests", label: "Squad Requests", icon: UserPlus },
   { id: "profile", label: "Profile", icon: User },
 ] as const;
 
@@ -98,14 +99,14 @@ export default function Page() {
           const mine = userStats(data.problems, currentAccountId);
           const rival = userStats([...data.problems, newProblem], friendId);
           
-          let tone = "🔥 Your rival is active!";
+          let tone = "🔥 Your mutual is cooking!";
           let desc = `${friend?.name} just solved ${newProblem.name}.`;
           
           if (rival.total > mine.total + 4) {
-            tone = "🚨 YOU'RE FALLING BEHIND!";
-            desc = `${friend?.name} is on a massive roll. Time to catch up?`;
+            tone = "🚨 THEY'RE PULLING AHEAD!";
+            desc = `${friend?.name} is in their prime. Time to catch up?`;
           } else if (rival.total > mine.total) {
-            tone = "⚔️ Rival on a roll!";
+            tone = "⚔️ Duo on a roll!";
             desc = `They've taken the lead. Your streak is safe, but for how long?`;
           }
 
@@ -205,13 +206,13 @@ function LoginPage({ onLogin }: { onLogin: (id: string) => void }) {
             <Swords className="size-4 text-primary" /> Two friends. One streak war.
           </div>
           <h1 className="max-w-3xl text-5xl font-black leading-tight tracking-normal sm:text-7xl">
-            AlgoBuilding<span className="block text-primary">Competition Tracker</span>
+            AlgoBuilding<span className="block text-primary">The Arena</span>
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">
-            A live competition hub where friends log solved problems, compare progress, and push each other with shared challenges.
+            A live shared hub where mutuals log problems, compare progress, and cook together with shared challenges.
           </p>
           <div className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-3">
-            {["No Email Needed", "Simple Username", "Live rivalry"].map((item) => (
+            {["No Email Needed", "Simple Username", "The Squad Flow"].map((item) => (
               <div key={item} className="rounded-lg border border-border bg-card/70 p-4 text-sm font-semibold shadow-card">
                 <ShieldCheck className="mb-3 size-5 text-primary" /> {item}
               </div>
@@ -261,7 +262,7 @@ function LoginPage({ onLogin }: { onLogin: (id: string) => void }) {
             </div>
             
             <Button className="mt-2 h-12 w-full" variant="rival" type="submit" disabled={busy}>
-              {busy ? <Loader2 className="animate-spin" /> : <Zap />} Enter Arena
+              {busy ? <Loader2 className="animate-spin" /> : <Zap />} Enter The Arena
             </Button>
           </div>
         </form>
@@ -299,7 +300,7 @@ function ProfileSetup({ accountId, onCreated }: { accountId: string; onCreated: 
     toast.success("Profile created");
     await onCreated();
   };
-  return <main className="app-shell-bg flex min-h-screen items-center justify-center px-4 text-foreground"><form onSubmit={submit} className="glass-panel w-full max-w-lg rounded-2xl p-6"><UserPlus className="mb-4 size-8 text-primary" /><h1 className="text-3xl font-black">Set up your profile</h1><p className="mt-2 text-sm text-muted-foreground">This is what your friend will see on the leaderboard.</p><div className="mt-6 grid gap-3"><input required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="h-11 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="Username" /><input required value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} className="h-11 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="Display name" /><input required value={form.emoji} onChange={(e) => setForm({ ...form, emoji: e.target.value })} className="h-11 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="Emoji" /><input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="h-11 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="Title" /><Button variant="rival" disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <UserPlus />} Save profile</Button></div></form></main>;
+  return <main className="app-shell-bg flex min-h-screen items-center justify-center px-4 text-foreground"><form onSubmit={submit} className="glass-panel w-full max-w-lg rounded-2xl p-6"><UserPlus className="mb-4 size-8 text-primary" /><h1 className="text-3xl font-black">Set up your profile</h1><p className="mt-2 text-sm text-muted-foreground">This is what the squad will see on the leaderboard.</p><div className="mt-6 grid gap-3"><input required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="h-11 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="Username" /><input required value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} className="h-11 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="Display name" /><input required value={form.emoji} onChange={(e) => setForm({ ...form, emoji: e.target.value })} className="h-11 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="Emoji" /><input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="h-11 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="Title" /><Button variant="rival" disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <UserPlus />} Save profile</Button></div></form></main>;
 }
 
 function CompetitionApp({ currentAccountId, data, onRefresh, onLogout }: { currentAccountId: string; data: AppData; onRefresh: () => Promise<void>; onLogout: () => void }) {
@@ -315,16 +316,16 @@ function CompetitionApp({ currentAccountId, data, onRefresh, onLogout }: { curre
     toast.success("Logged out"); 
   };
 
-  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">Competition Tracker</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} friend={friend} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} />}{view === "leaderboard" && <Leaderboard users={users} problems={data.problems} />}{view === "log" && <LogProblem currentAccountId={currentAccountId} data={data} onRefresh={onRefresh} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={data.problems} />}{view === "friend-problems" && <FriendProblems currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "challenges" && <Challenges challenges={data.challenges} users={users} problems={data.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "hall-of-fame" && <HallOfFame users={users} problems={data.problems} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={users} problems={data.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
+  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">The Arena</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} friend={friend} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} />}{view === "leaderboard" && <Leaderboard users={users} problems={data.problems} />}{view === "log" && <LogProblem currentAccountId={currentAccountId} data={data} onRefresh={onRefresh} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={data.problems} />}{view === "friend-problems" && <FriendProblems currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "challenges" && <Challenges challenges={data.challenges} users={users} problems={data.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "hall-of-fame" && <HallOfFame users={users} problems={data.problems} />}{view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={users} onRefresh={onRefresh} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={users} problems={data.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
 }
 
-function Header({ user, friend }: { user: RivalUser; friend: RivalUser }) {
+function Header({ user, friend }: { user: MutualUser; friend: MutualUser }) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  return <header className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card/70 p-5 shadow-card sm:flex-row sm:items-center"><div><p className="text-sm font-semibold text-primary">Rival: {friend.name} {friend.emoji}</p><h2 className="text-3xl font-black">{greeting}, {user.name}! {user.emoji}</h2></div><div className="rounded-xl bg-secondary px-4 py-3 text-sm text-muted-foreground"><Flame className="mr-2 inline size-4 text-accent" /> Live shared progress.</div></header>;
+  return <header className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card/70 p-5 shadow-card sm:flex-row sm:items-center"><div><p className="text-sm font-semibold text-primary">Duo: {friend.name} {friend.emoji}</p><h2 className="text-3xl font-black">{greeting}, {user.name}! {user.emoji}</h2></div><div className="rounded-xl bg-secondary px-4 py-3 text-sm text-muted-foreground"><Flame className="mr-2 inline size-4 text-accent" /> Cooking with the Squad.</div></header>;
 }
 
-function Dashboard({ currentAccountId, data, users, onRefresh }: { currentAccountId: string; data: AppData; users: RivalUser[]; onRefresh: () => Promise<void> }) {
+function Dashboard({ currentAccountId, data, users, onRefresh }: { currentAccountId: string; data: AppData; users: MutualUser[]; onRefresh: () => Promise<void> }) {
   const mine = userStats(data.problems, currentAccountId);
   const friendId = getFriendId(currentAccountId, users);
   const rival = userStats(data.problems, friendId);
@@ -358,8 +359,8 @@ function Dashboard({ currentAccountId, data, users, onRefresh }: { currentAccoun
           <div className="glass-panel rounded-2xl p-5">
             <h3 className="mb-4 text-xl font-bold">Friend Comparison</h3>
             <div className="grid gap-4 sm:grid-cols-2">
-              <RivalCard user={user} stats={mine} highlight />
-              <RivalCard user={friend} stats={rival} />
+              <MutualCard user={user} stats={mine} highlight />
+              <MutualCard user={friend} stats={rival} />
             </div>
           </div>
           <WeeklyPledge currentAccountId={currentAccountId} stats={mine} />
@@ -407,7 +408,7 @@ function StatCard({ label, value, Icon }: { label: string; value: React.ReactNod
   return <div className="card-gradient rounded-2xl border border-border p-5 shadow-card transition hover:-translate-y-1"><Icon className="mb-4 size-5 text-primary" /><p className="text-sm text-muted-foreground">{label}</p><p className="mt-1 text-3xl font-black">{value}</p></div>;
 }
 
-function RivalCard({ user, stats, highlight }: { user: RivalUser; stats: ReturnType<typeof userStats>; highlight?: boolean }) {
+function MutualCard({ user, stats, highlight }: { user: MutualUser; stats: ReturnType<typeof userStats>; highlight?: boolean }) {
   return <div className={`rounded-xl border p-5 ${highlight ? "border-primary bg-primary/10" : "border-border bg-card/70"}`}><div className="text-3xl">{user.emoji}</div><h4 className="mt-2 text-xl font-black">{user.name}</h4><p className="text-sm text-muted-foreground">{user.title}</p><div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm"><span>{stats.total}<small className="block text-muted-foreground">total</small></span><span>{stats.week}<small className="block text-muted-foreground">week</small></span><span>{stats.streak}<small className="block text-muted-foreground">streak</small></span></div></div>;
 }
 
@@ -529,7 +530,7 @@ function Select({ value, options, onChange }: { value: string; options: string[]
   return <select value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30">{options.map((option) => <option key={option}>{option}</option>)}</select>;
 }
 
-function RecentActivity({ problems, users }: { problems: Problem[]; users: RivalUser[] }) {
+function RecentActivity({ problems, users }: { problems: Problem[]; users: MutualUser[] }) {
   return <div className="glass-panel rounded-2xl p-5"><h3 className="mb-4 text-xl font-bold">Recent Activity</h3><div className="space-y-3">{problems.map((problem) => { const user = users.find((item) => item.id === problem.accountId); return <div key={problem.id} className="flex items-center justify-between rounded-lg bg-secondary/60 p-3"><div><p className="font-semibold">{user?.emoji ?? "🚀"} {problem.name}</p><p className="text-xs text-muted-foreground">{problem.platform} · {problem.topic} · {problem.difficulty}</p></div><span className="text-xs text-muted-foreground">{new Date(problem.solvedAt).toLocaleDateString()}</span></div>; })}</div></div>;
 }
 
@@ -539,7 +540,7 @@ function Heatmap({ currentAccountId, problems }: { currentAccountId: string; pro
   return <div className="glass-panel rounded-2xl p-5"><h3 className="mb-4 text-xl font-bold">Contribution Heatmap</h3><div className="grid grid-cols-7 gap-2">{cells.map((count, index) => <div key={index} title={`${count} solved`} className={`aspect-square rounded ${count === 0 ? "bg-muted" : count === 1 ? "bg-heat-1" : count === 2 ? "bg-heat-2" : count === 3 ? "bg-heat-3" : "bg-heat-4"}`} />)}</div></div>;
 }
 
-function Leaderboard({ users, problems }: { users: RivalUser[]; problems: Problem[] }) {
+function Leaderboard({ users, problems }: { users: MutualUser[]; problems: Problem[] }) {
   const ranked = [...users].sort((a, b) => userStats(problems, b.id).total - userStats(problems, a.id).total);
   return <section className="glass-panel animate-enter rounded-2xl p-5"><h3 className="mb-5 text-2xl font-black">Leaderboard</h3>{ranked.length === 0 && <p className="text-sm text-muted-foreground">No builders yet.</p>}{ranked.map((user, index) => <div key={user.id} className="mb-3 flex items-center justify-between rounded-xl bg-card/80 p-4"><div className="flex items-center gap-4"><span className="text-2xl">{index === 0 ? "🥇" : index === 1 ? "🥈" : "🏅"}</span><div><p className="text-lg font-bold">{user.emoji} {user.name}</p><p className="text-sm text-muted-foreground">@{user.username}</p></div></div><div className="text-right"><p className="text-2xl font-black">{userStats(problems, user.id).total}</p><p className="text-xs text-muted-foreground">total solved</p></div></div>)}</section>;
 }
@@ -551,25 +552,25 @@ function MyProblems({ currentAccountId, problems }: { currentAccountId: string; 
   return <section className="glass-panel animate-enter rounded-2xl p-5"><div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row"><h3 className="text-2xl font-black">My Problems</h3><label className="flex items-center gap-2 rounded-lg border border-input bg-background/70 px-3"><Search className="size-4 text-muted-foreground" /><input value={filter} onChange={(e) => setFilter(e.target.value)} className="h-10 bg-transparent outline-none" placeholder="Filter platform, topic..." /></label></div><ProblemTable problems={filtered} /></section>;
 }
 
-function FriendProblems({ currentAccountId, users, problems }: { currentAccountId: string; users: RivalUser[]; problems: Problem[] }) {
+function FriendProblems({ currentAccountId, users, problems }: { currentAccountId: string; users: MutualUser[]; problems: Problem[] }) {
   const friendId = getFriendId(currentAccountId, users);
   const friend = users.find((item) => item.id === friendId) ?? users.find((item) => item.id === currentAccountId)!;
   const solvedByMe = new Set(problems.filter((problem) => problem.accountId === currentAccountId).map((problem) => problem.name.toLowerCase()));
   const friendProblems = problems.filter((problem) => problem.accountId === friendId);
   const [filter, setFilter] = useState("");
   const filtered = friendProblems.filter((problem) => `${problem.platform} ${problem.difficulty} ${problem.topic} ${problem.name}`.toLowerCase().includes(filter.toLowerCase()));
-  return <section className="glass-panel animate-enter rounded-2xl p-5"><div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row"><div><h3 className="text-2xl font-black">{friend.name}'s Solved Problems</h3><p className="mt-1 text-sm text-muted-foreground">See what your friend solved and choose your next target.</p></div><label className="flex items-center gap-2 rounded-lg border border-input bg-background/70 px-3"><Search className="size-4 text-muted-foreground" /><input value={filter} onChange={(e) => setFilter(e.target.value)} className="h-10 bg-transparent outline-none" placeholder="Filter friend problems..." /></label></div><div className="grid gap-3">{filtered.length === 0 && <p className="text-sm text-muted-foreground">No friend problems yet. Invite your friend to sign up and log problems.</p>}{filtered.map((problem) => { const alreadySolved = solvedByMe.has(problem.name.toLowerCase()); return <div key={problem.id} className="rounded-xl border border-border bg-card/80 p-4"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><p className="text-lg font-bold">{problem.name}</p><p className="mt-1 text-sm text-muted-foreground">{problem.platform} · {problem.topic} · {problem.difficulty} · {problem.timeTaken}m</p></div><div className="flex items-center gap-2"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${alreadySolved ? "bg-primary/15 text-primary" : "bg-accent/15 text-accent"}`}>{alreadySolved ? "You solved it" : "Try this next"}</span>{problem.link && <a href={problem.link} target="_blank" rel="noreferrer" className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-secondary text-foreground transition hover:bg-accent hover:text-accent-foreground" aria-label={`Open ${problem.name}`}><ExternalLink className="size-4" /></a>}</div></div><p className="mt-3 text-xs text-muted-foreground">Solved on {new Date(problem.solvedAt).toLocaleDateString()}</p></div>; })}</div></section>;
+  return <section className="glass-panel animate-enter rounded-2xl p-5"><div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row"><div><h3 className="text-2xl font-black">{friend.name}'s Solved Problems</h3><p className="mt-1 text-sm text-muted-foreground">See what your mutual solved and choose your next target.</p></div><label className="flex items-center gap-2 rounded-lg border border-input bg-background/70 px-3"><Search className="size-4 text-muted-foreground" /><input value={filter} onChange={(e) => setFilter(e.target.value)} className="h-10 bg-transparent outline-none" placeholder="Filter squad problems..." /></label></div><div className="grid gap-3">{filtered.length === 0 && <p className="text-sm text-muted-foreground">No squad problems yet. Invite your squad to sign up and log problems.</p>}{filtered.map((problem) => { const alreadySolved = solvedByMe.has(problem.name.toLowerCase()); return <div key={problem.id} className="rounded-xl border border-border bg-card/80 p-4"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><p className="text-lg font-bold">{problem.name}</p><p className="mt-1 text-sm text-muted-foreground">{problem.platform} · {problem.topic} · {problem.difficulty} · {problem.timeTaken}m</p></div><div className="flex items-center gap-2"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${alreadySolved ? "bg-primary/15 text-primary" : "bg-accent/15 text-accent"}`}>{alreadySolved ? "You solved it" : "Try this next"}</span>{problem.link && <a href={problem.link} target="_blank" rel="noreferrer" className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-secondary text-foreground transition hover:bg-accent hover:text-accent-foreground" aria-label={`Open ${problem.name}`}><ExternalLink className="size-4" /></a>}</div></div><p className="mt-3 text-xs text-muted-foreground">Solved on {new Date(problem.solvedAt).toLocaleDateString()}</p></div>; })}</div></section>;
 }
 
 function ProblemTable({ problems }: { problems: Problem[] }) {
   return <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="text-muted-foreground"><tr><th className="py-3">Problem</th><th>Platform</th><th>Difficulty</th><th>Topic</th><th>Time</th><th>Date</th></tr></thead><tbody>{problems.map((problem) => <tr key={problem.id} className="border-t border-border"><td className="py-3 font-semibold">{problem.link ? <a className="transition hover:text-primary" href={problem.link} target="_blank" rel="noreferrer">{problem.name}</a> : problem.name}</td><td>{problem.platform}</td><td>{problem.difficulty}</td><td>{problem.topic}</td><td>{problem.timeTaken}m</td><td>{new Date(problem.solvedAt).toLocaleDateString()}</td></tr>)}</tbody></table></div>;
 }
 
-function Challenges({ challenges, users, problems }: { challenges: Challenge[]; users: RivalUser[]; problems: Problem[] }) {
+function Challenges({ challenges, users, problems }: { challenges: Challenge[]; users: MutualUser[]; problems: Problem[] }) {
   return <section className="animate-enter grid gap-4 lg:grid-cols-3">{challenges.map((challenge) => <div key={challenge.id} className="glass-panel rounded-2xl p-5"><Target className="mb-4 size-6 text-accent" /><h3 className="text-xl font-black">{challenge.title}</h3><p className="mb-4 text-sm text-muted-foreground">{challenge.topic} · Reward {challenge.reward}</p>{users.map((user) => { const count = problems.filter((problem) => problem.accountId === user.id && (problem.topic === challenge.topic || (challenge.topic === 'Easy' && problem.difficulty === 'Easy'))).length; return <div key={user.id} className="mb-3"><div className="mb-1 flex justify-between text-sm"><span>{user.emoji} {user.name}</span><span>{count}/{challenge.target}</span></div><div className="h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-primary" style={{ width: `${Math.min(100, (count / challenge.target) * 100)}%` }} /></div></div>; })}</div>)}</section>;
 }
 
-function HallOfFame({ users, problems }: { users: RivalUser[]; problems: Problem[] }) {
+function HallOfFame({ users, problems }: { users: MutualUser[]; problems: Problem[] }) {
   const ranked = [...users].map(user => ({
     ...user,
     stats: userStats(problems, user.id)
@@ -579,7 +580,7 @@ function HallOfFame({ users, problems }: { users: RivalUser[]; problems: Problem
     <section className="glass-panel animate-enter rounded-2xl p-6">
       <div className="mb-8 text-center">
         <Medal className="mx-auto mb-4 size-12 text-primary" />
-        <h3 className="text-4xl font-black">Streaks Hall of Fame</h3>
+        <h3 className="text-4xl font-black">The Main Hall</h3>
         <p className="mt-2 text-muted-foreground text-lg">The arena of ultimate consistency.</p>
       </div>
       
@@ -669,7 +670,7 @@ function WeeklyPledge({ currentAccountId, stats }: { currentAccountId: string; s
   );
 }
 
-function Analytics({ currentAccountId, users, problems }: { currentAccountId: string; users: RivalUser[]; problems: Problem[] }) {
+function Analytics({ currentAccountId, users, problems }: { currentAccountId: string; users: MutualUser[]; problems: Problem[] }) {
   const friendId = getFriendId(currentAccountId, users);
   const mine = problems.filter((problem) => problem.accountId === currentAccountId);
   const friend = problems.filter((problem) => problem.accountId === friendId);
@@ -749,14 +750,24 @@ function Analytics({ currentAccountId, users, problems }: { currentAccountId: st
   );
 }
 
-function Profile({ currentAccountId, profiles, users, problems, onRefresh, onLogout }: { currentAccountId: string; profiles: ProfileType[]; users: RivalUser[]; problems: Problem[]; onRefresh: () => Promise<void>; onLogout: () => void }) {
+function Profile({ currentAccountId, profiles, users, problems, onRefresh, onLogout }: { currentAccountId: string; profiles: ProfileType[]; users: MutualUser[]; problems: Problem[]; onRefresh: () => Promise<void>; onLogout: () => void }) {
   const profile = profiles.find((item) => item.account_id === currentAccountId)!;
   const user = mapUser(profile);
   const stats = userStats(problems, currentAccountId);
-  const [rivalUsername, setRivalUsername] = useState(users.find((item) => item.id === profile.rival_user_id)?.username ?? "");
+  const [mutualUsername, setMutualUsername] = useState(users.find((item) => item.id === profile.rival_user_id)?.username ?? "");
   const [resetting, setResetting] = useState(false);
 
-  const saveRival = async () => { const rival = users.find((item) => item.username.toLowerCase() === rivalUsername.trim().toLowerCase()); if (!rival || rival.id === currentAccountId) { toast.error("Enter a valid friend's username"); return; } const { error } = await supabase.from("profiles" as any).update({ rival_user_id: rival.id }).eq("account_id", currentAccountId); if (error) { toast.error(error.message); return; } toast.success("Rival updated"); await onRefresh(); };
+  const saveMutual = async () => { 
+    const mutual = users.find((item) => item.username.toLowerCase() === mutualUsername.trim().toLowerCase()); 
+    if (!mutual || mutual.id === currentAccountId) { 
+      toast.error("Enter a valid username from the squad"); 
+      return; 
+    } 
+    const { error } = await supabase.from("profiles" as any).update({ rival_user_id: mutual.id }).eq("account_id", currentAccountId); 
+    if (error) { toast.error(error.message); return; } 
+    toast.success("Mutual duo updated"); 
+    await onRefresh(); 
+  };
 
   const handleReset = async () => {
     const confirmReset = window.confirm("Are you sure you want to reset all your data? This will delete your profile, all logged problems, and your account. This action cannot be undone.");
@@ -782,5 +793,115 @@ function Profile({ currentAccountId, profiles, users, problems, onRefresh, onLog
     }
   };
 
-  return <section className="glass-panel animate-enter rounded-2xl p-6"><div className="text-7xl">{user.emoji}</div><h3 className="mt-4 text-3xl font-black">{user.name}</h3><p className="text-primary">@{user.username} · {user.title}</p><div className="mt-6 grid gap-4 sm:grid-cols-4"><StatCard label="Solved" value={stats.total} Icon={Medal} /><StatCard label="This Week" value={stats.week} Icon={ListFilter} /><StatCard label="Hard Wins" value={stats.hard} Icon={Swords} /><StatCard label="Minutes" value={stats.minutes} Icon={Activity} /></div><div className="mt-6 rounded-xl border border-border bg-card/70 p-4"><h4 className="font-bold">Choose your friend</h4><p className="mt-1 text-sm text-muted-foreground">Enter your friend's username to compare directly.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={rivalUsername} onChange={(e) => setRivalUsername(e.target.value)} className="h-11 flex-1 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="friend_username" /><Button type="button" variant="rival" onClick={saveRival}>Save Rival</Button></div></div><div className="mt-10 pt-6 border-t border-destructive/20"><h4 className="text-destructive font-bold">Danger Zone</h4><p className="mt-1 text-sm text-muted-foreground">Resetting your data will permanently delete your account and all progress.</p><Button type="button" variant="destructive" className="mt-4" onClick={handleReset} disabled={resetting}>{resetting ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Reset All Data</Button></div></section>;
+  return <section className="glass-panel animate-enter rounded-2xl p-6"><div className="text-7xl">{user.emoji}</div><h3 className="mt-4 text-3xl font-black">{user.name}</h3><p className="text-primary">@{user.username} · {user.title}</p><div className="mt-6 grid gap-4 sm:grid-cols-4"><StatCard label="Solved" value={stats.total} Icon={Medal} /><StatCard label="This Week" value={stats.week} Icon={ListFilter} /><StatCard label="Hard Wins" value={stats.hard} Icon={Swords} /><StatCard label="Minutes" value={stats.minutes} Icon={Activity} /></div><div className="mt-6 rounded-xl border border-border bg-card/70 p-4"><h4 className="font-bold">Choose your main duo</h4><p className="mt-1 text-sm text-muted-foreground">Enter a mutual's username to compare directly.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={mutualUsername} onChange={(e) => setMutualUsername(e.target.value)} className="h-11 flex-1 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="mutual_username" /><Button type="button" variant="rival" onClick={saveMutual}>Save Mutual</Button></div></div><div className="mt-10 pt-6 border-t border-destructive/20"><h4 className="text-destructive font-bold">Danger Zone</h4><p className="mt-1 text-sm text-muted-foreground">Resetting your data will permanently delete your account and all progress.</p><Button type="button" variant="destructive" className="mt-4" onClick={handleReset} disabled={resetting}>{resetting ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Reset All Data</Button></div></section>;
+}
+
+function SquadRequests({ currentAccountId, users, onRefresh }: { currentAccountId: string; users: MutualUser[]; onRefresh: () => Promise<void> }) {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [targetUsername, setTargetUsername] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const fetchRequests = async () => {
+      const { data, error } = await supabase.from("friendships" as any).select("*").or(`sender_id.eq.${currentAccountId},receiver_id.eq.${currentAccountId}`);
+      if (!error) setRequests(data || []);
+    };
+    fetchRequests();
+  }, [currentAccountId]);
+
+  const sendRequest = async () => {
+    const target = users.find(u => u.username.toLowerCase() === targetUsername.trim().toLowerCase());
+    if (!target || target.id === currentAccountId) {
+      toast.error("Valid mutual username required");
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase.from("friendships" as any).insert({ sender_id: currentAccountId, receiver_id: target.id });
+    setBusy(false);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Request sent to the squad!");
+      setTargetUsername("");
+    }
+  };
+
+  const updateRequest = async (id: string, status: string) => {
+    const { error } = await supabase.from("friendships" as any).update({ status }).eq("id", id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(status === "accepted" ? "Squad member added! 🤝" : "Request declined");
+      onRefresh();
+    }
+  };
+
+  const incoming = requests.filter(r => r.receiver_id === currentAccountId && r.status === "pending");
+  const outgoing = requests.filter(r => r.sender_id === currentAccountId && r.status === "pending");
+
+  return (
+    <section className="animate-enter space-y-6">
+      <div className="glass-panel rounded-2xl p-6">
+        <h3 className="text-2xl font-black mb-2">Build Your Squad</h3>
+        <p className="text-sm text-muted-foreground mb-6">Send requests to mutuals to start tracking progress together.</p>
+        
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input 
+            value={targetUsername} 
+            onChange={(e) => setTargetUsername(e.target.value)} 
+            className="h-11 flex-1 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" 
+            placeholder="Search username..." 
+          />
+          <Button variant="rival" onClick={sendRequest} disabled={busy}>
+            {busy ? <Loader2 className="animate-spin" /> : <UserPlus />} Send Request
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="glass-panel rounded-2xl p-5">
+          <h4 className="font-bold mb-4 flex items-center gap-2">
+            <Zap className="size-4 text-primary" /> Incoming Requests
+          </h4>
+          <div className="space-y-3">
+            {incoming.length === 0 && <p className="text-xs text-muted-foreground italic">No pending requests.</p>}
+            {incoming.map(req => {
+              const sender = users.find(u => u.id === req.sender_id);
+              return (
+                <div key={req.id} className="flex items-center justify-between rounded-xl bg-secondary/40 p-3 border border-border">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{sender?.emoji}</span>
+                    <span className="font-bold">{sender?.name}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="rival" onClick={() => updateRequest(req.id, "accepted")}>Accept</Button>
+                    <Button size="sm" variant="ghost" onClick={() => updateRequest(req.id, "declined")}>Decline</Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="glass-panel rounded-2xl p-5">
+          <h4 className="font-bold mb-4 flex items-center gap-2">
+            <Plus className="size-4 text-muted-foreground" /> Pending Outgoing
+          </h4>
+          <div className="space-y-3">
+            {outgoing.length === 0 && <p className="text-xs text-muted-foreground italic">No sent requests.</p>}
+            {outgoing.map(req => {
+              const receiver = users.find(u => u.id === req.receiver_id);
+              return (
+                <div key={req.id} className="flex items-center justify-between rounded-xl bg-secondary/20 p-3 opacity-70">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{receiver?.emoji}</span>
+                    <span className="font-bold">{receiver?.name}</span>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Waiting...</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }

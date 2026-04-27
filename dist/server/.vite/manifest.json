@@ -1,0 +1,116 @@
+{
+  "%23tanstack-start-plugin-adapters": {
+    "file": "assets/__23tanstack-start-plugin-adapters-Cwee5PKy.js",
+    "name": "__23tanstack-start-plugin-adapters",
+    "src": "%23tanstack-start-plugin-adapters",
+    "isDynamicEntry": true
+  },
+  "/Users/saketh/Documents/algobuilding/code-rivals-hub/src/styles.css": {
+    "file": "assets/styles-ZlXvbLVw.css",
+    "src": "/Users/saketh/Documents/algobuilding/code-rivals-hub/src/styles.css"
+  },
+  "_lucide-vV39RTsi.js": {
+    "file": "assets/lucide-vV39RTsi.js",
+    "name": "lucide",
+    "imports": [
+      "_react-core-iclSsBan.js"
+    ]
+  },
+  "_radix-Cp-It47m.js": {
+    "file": "assets/radix-Cp-It47m.js",
+    "name": "radix",
+    "imports": [
+      "_react-core-iclSsBan.js"
+    ]
+  },
+  "_react-core-iclSsBan.js": {
+    "file": "assets/react-core-iclSsBan.js",
+    "name": "react-core"
+  },
+  "_react-dom-EHc2Jb4T.js": {
+    "file": "assets/react-dom-EHc2Jb4T.js",
+    "name": "react-dom",
+    "imports": [
+      "_react-core-iclSsBan.js"
+    ]
+  },
+  "_supabase-C6_Pzch3.js": {
+    "file": "assets/supabase-C6_Pzch3.js",
+    "name": "supabase",
+    "imports": [
+      "_vendor-CJMdJXvN.js"
+    ]
+  },
+  "_tanstack-DScXbb9u.js": {
+    "file": "assets/tanstack-DScXbb9u.js",
+    "name": "tanstack",
+    "imports": [
+      "_react-core-iclSsBan.js",
+      "_react-dom-EHc2Jb4T.js",
+      "_vendor-CJMdJXvN.js"
+    ],
+    "dynamicImports": [
+      "tanstack-start-manifest:v",
+      "src/router.tsx",
+      "%23tanstack-start-plugin-adapters"
+    ]
+  },
+  "_vendor-CJMdJXvN.js": {
+    "file": "assets/vendor-CJMdJXvN.js",
+    "name": "vendor",
+    "imports": [
+      "_react-core-iclSsBan.js",
+      "_react-dom-EHc2Jb4T.js"
+    ]
+  },
+  "src/router.tsx": {
+    "file": "assets/router-BpMXnJxR.js",
+    "name": "router",
+    "src": "src/router.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_react-core-iclSsBan.js",
+      "_tanstack-DScXbb9u.js",
+      "_vendor-CJMdJXvN.js",
+      "_react-dom-EHc2Jb4T.js"
+    ],
+    "dynamicImports": [
+      "src/routes/index.tsx?tsr-split=component"
+    ],
+    "assets": [
+      "assets/styles-ZlXvbLVw.css"
+    ]
+  },
+  "src/routes/index.tsx?tsr-split=component": {
+    "file": "assets/index-B6gj54kr.js",
+    "name": "index",
+    "src": "src/routes/index.tsx?tsr-split=component",
+    "isDynamicEntry": true,
+    "imports": [
+      "_react-core-iclSsBan.js",
+      "_vendor-CJMdJXvN.js",
+      "_radix-Cp-It47m.js",
+      "_supabase-C6_Pzch3.js",
+      "_lucide-vV39RTsi.js",
+      "_react-dom-EHc2Jb4T.js"
+    ]
+  },
+  "tanstack-start-manifest:v": {
+    "file": "assets/_tanstack-start-manifest_v-CS-iGrK2.js",
+    "name": "_tanstack-start-manifest_v",
+    "src": "tanstack-start-manifest:v",
+    "isDynamicEntry": true
+  },
+  "virtual:cloudflare/worker-entry": {
+    "file": "index.js",
+    "name": "index",
+    "src": "virtual:cloudflare/worker-entry",
+    "isEntry": true,
+    "imports": [
+      "_vendor-CJMdJXvN.js",
+      "_tanstack-DScXbb9u.js",
+      "_react-core-iclSsBan.js",
+      "_react-dom-EHc2Jb4T.js"
+    ]
+  }
+}

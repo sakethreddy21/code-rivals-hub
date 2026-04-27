@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { AppData, Challenge, Difficulty, Problem, Profile, RivalUser } from "@/types/rivals";
+import { AppData, Challenge, Difficulty, MutualUser, Problem, Profile } from "@/types/rivals";
 
 export const platforms = ["LeetCode", "NeetCode", "Codeforces", "HackerRank", "Custom..."];
 export const difficulties = ["Easy", "Medium", "Hard"] as const;
@@ -20,14 +20,14 @@ export function mapProblem(problem: any): Problem {
   };
 }
 
-export function mapUser(profile: Profile): RivalUser {
+export function mapUser(profile: Profile): MutualUser {
   return {
     id: profile.account_id,
     name: profile.display_name,
     emoji: profile.emoji,
     title: profile.title,
     username: profile.username,
-    rivalUserId: profile.rival_user_id,
+    mutualUserId: profile.rival_user_id,
   };
 }
 
@@ -74,6 +74,7 @@ export function userStats(problems: Problem[], accountId: string) {
 
 export type StreakStatus = "Safe" | "Caution" | "Critical";
 
+
 export function getStreakStatus(solvedToday: boolean): { status: StreakStatus; message: string; color: string } {
   if (solvedToday) {
     return { status: "Safe", message: "Streak protected for today! 🔥", color: "text-green-500" };
@@ -88,9 +89,9 @@ export function getStreakStatus(solvedToday: boolean): { status: StreakStatus; m
   return { status: "Critical", message: "FINAL CALL: Your streak will break in a few hours! 🚨", color: "text-red-500" };
 }
 
-export function getFriendId(currentAccountId: string, users: RivalUser[]) {
+export function getFriendId(currentAccountId: string, users: MutualUser[]) {
   const current = users.find((user) => user.id === currentAccountId);
-  return current?.rivalUserId || users.find((user) => user.id !== currentAccountId)?.id || currentAccountId;
+  return current?.mutualUserId || users.find((user) => user.id !== currentAccountId)?.id || currentAccountId;
 }
 
 export async function loadAppData(): Promise<AppData> {
