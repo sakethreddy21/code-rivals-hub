@@ -22,6 +22,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import confetti from "canvas-confetti";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -41,7 +42,8 @@ import {
   mapUser, 
   platforms, 
   topics, 
-  userStats 
+  userStats,
+  getStreakStatus 
 } from "@/lib/rivals";
 
 type ViewId = (typeof navItems)[number]["id"];
@@ -54,6 +56,7 @@ const navItems = [
   { id: "friend-problems", label: "Friend Solved", icon: Swords },
   { id: "challenges", label: "Challenges", icon: Target },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "hall-of-fame", label: "Hall of Fame", icon: Medal },
   { id: "profile", label: "Profile", icon: User },
 ] as const;
 
@@ -85,14 +88,42 @@ export default function Page() {
     const channel = supabase
       .channel("rivals-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "problems" }, () => refresh())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "problems" }, (payload) => {
+        const newProblem = payload.new as any;
+        const users = data.profiles.map(mapUser);
+        const friendId = getFriendId(currentAccountId, users);
+        
+        if (newProblem.account_id === friendId) {
+          const friend = users.find(u => u.id === friendId);
+          const mine = userStats(data.problems, currentAccountId);
+          const rival = userStats([...data.problems, newProblem], friendId);
+          
+          let tone = "🔥 Your rival is active!";
+          let desc = `${friend?.name} just solved ${newProblem.name}.`;
+          
+          if (rival.total > mine.total + 4) {
+            tone = "🚨 YOU'RE FALLING BEHIND!";
+            desc = `${friend?.name} is on a massive roll. Time to catch up?`;
+          } else if (rival.total > mine.total) {
+            tone = "⚔️ Rival on a roll!";
+            desc = `They've taken the lead. Your streak is safe, but for how long?`;
+          }
+
+          toast(tone, {
+            description: desc,
+            icon: <Zap className="text-accent" />,
+            duration: 6000,
+          });
+        }
+        refresh();
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "challenges" }, () => refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "accounts" }, () => refresh())
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentAccountId]);
+  }, [currentAccountId, data]);
 
   if (loading) return <LoadingScreen />;
   if (!currentAccountId) return <LoginPage onLogin={(id) => setCurrentAccountId(id)} />;
@@ -284,7 +315,7 @@ function CompetitionApp({ currentAccountId, data, onRefresh, onLogout }: { curre
     toast.success("Logged out"); 
   };
 
-  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">Competition Tracker</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} friend={friend} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} />}{view === "leaderboard" && <Leaderboard users={users} problems={data.problems} />}{view === "log" && <LogProblem currentAccountId={currentAccountId} data={data} onRefresh={onRefresh} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={data.problems} />}{view === "friend-problems" && <FriendProblems currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "challenges" && <Challenges challenges={data.challenges} users={users} problems={data.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={users} problems={data.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
+  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">Competition Tracker</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} friend={friend} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} />}{view === "leaderboard" && <Leaderboard users={users} problems={data.problems} />}{view === "log" && <LogProblem currentAccountId={currentAccountId} data={data} onRefresh={onRefresh} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={data.problems} />}{view === "friend-problems" && <FriendProblems currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "challenges" && <Challenges challenges={data.challenges} users={users} problems={data.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "hall-of-fame" && <HallOfFame users={users} problems={data.problems} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={users} problems={data.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
 }
 
 function Header({ user, friend }: { user: RivalUser; friend: RivalUser }) {
@@ -300,7 +331,76 @@ function Dashboard({ currentAccountId, data, users, onRefresh }: { currentAccoun
   const user = users.find((item) => item.id === currentAccountId)!;
   const friend = users.find((item) => item.id === friendId) ?? user;
   const recent = [...data.problems].sort((a, b) => +new Date(b.solvedAt) - +new Date(a.solvedAt)).slice(0, 6);
-  return <section className="animate-enter space-y-6"><div className="grid gap-4 md:grid-cols-4">{([{ label: "Total Solved", value: mine.total, Icon: Trophy }, { label: "Today", value: mine.today, Icon: Zap }, { label: "Current Streak", value: `${mine.streak} days`, Icon: Flame }, { label: "Weekly Progress", value: mine.week, Icon: Activity }] satisfies Array<{ label: string; value: React.ReactNode; Icon: LucideIcon }>).map((item) => <StatCard key={item.label} {...item} />)}</div><div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]"><div className="glass-panel rounded-2xl p-5"><h3 className="mb-4 text-xl font-bold">Friend Comparison</h3><div className="grid gap-4 sm:grid-cols-2"><RivalCard user={user} stats={mine} highlight /><RivalCard user={friend} stats={rival} /></div></div><div className="glass-panel rounded-2xl p-5"><h3 className="mb-4 text-xl font-bold">Quick Log Solved Problem</h3><LogProblem currentAccountId={currentAccountId} data={data} compact onRefresh={onRefresh} /></div></div><div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]"><RecentActivity problems={recent} users={users} /><Heatmap currentAccountId={currentAccountId} problems={data.problems} /></div></section>;
+
+  const streakInfo = getStreakStatus(mine.solvedToday);
+
+  return (
+    <section className="animate-enter space-y-6">
+      <div className="grid gap-4 md:grid-cols-4">
+        <StatCard label="Total Solved" value={mine.total} Icon={Trophy} />
+        <StatCard label="Today" value={mine.today} Icon={Zap} />
+        <div className={`card-gradient relative overflow-hidden rounded-2xl border p-5 shadow-card transition hover:-translate-y-1 ${mine.solvedToday ? "border-green-500/50" : streakInfo.status === "Critical" ? "border-red-500 animate-pulse" : "border-yellow-500/50"}`}>
+          <div className="flex items-center justify-between">
+            <Flame className={`size-5 ${streakInfo.color}`} />
+            {!mine.solvedToday && <Countdown />}
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">Current Streak</p>
+          <p className="mt-1 text-3xl font-black">{mine.streak} days</p>
+          <p className={`mt-2 text-[10px] font-bold uppercase tracking-wider ${streakInfo.color}`}>
+            {streakInfo.message}
+          </p>
+        </div>
+        <StatCard label="Weekly Progress" value={mine.week} Icon={Activity} />
+      </div>
+      
+      <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+        <div className="space-y-6">
+          <div className="glass-panel rounded-2xl p-5">
+            <h3 className="mb-4 text-xl font-bold">Friend Comparison</h3>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <RivalCard user={user} stats={mine} highlight />
+              <RivalCard user={friend} stats={rival} />
+            </div>
+          </div>
+          <WeeklyPledge currentAccountId={currentAccountId} stats={mine} />
+        </div>
+        <div className="glass-panel rounded-2xl p-5">
+          <h3 className="mb-4 text-xl font-bold">Quick Log Solved Problem</h3>
+          <LogProblem currentAccountId={currentAccountId} data={data} compact onRefresh={onRefresh} />
+        </div>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+        <RecentActivity problems={recent} users={users} />
+        <Heatmap currentAccountId={currentAccountId} problems={data.problems} />
+      </div>
+    </section>
+  );
+}
+
+function Countdown() {
+  const [timeLeft, setTimeLeft] = useState("");
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      const diff = end.getTime() - now.getTime();
+      
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const secs = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      setTimeLeft(`${hours}h ${mins}m ${secs}s`);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded-full">
+      <Activity className="size-3" /> {timeLeft} left
+    </div>
+  );
 }
 
 function StatCard({ label, value, Icon }: { label: string; value: React.ReactNode; Icon: LucideIcon }) {
@@ -372,7 +472,24 @@ function LogProblem({ currentAccountId, data, compact = false, onRefresh }: { cu
       toast.error(error.message); 
       return; 
     } 
-    toast.success("Problem logged. Streak protected!"); 
+
+    // Celebration check
+    const newStats = userStats([...(data?.problems || []), { solvedAt: new Date().toISOString() } as any], currentAccountId);
+    if (newStats.streak === 7 || newStats.streak === 30 || newStats.streak === 100) {
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#6366f1", "#a855f7", "#ec4899"]
+      });
+      toast.success(`AMAZING! ${newStats.streak} DAY STREAK! 🏆`, {
+        description: "You're building an unstoppable momentum.",
+        duration: 5000,
+      });
+    } else {
+      toast.success("Problem logged. Streak protected!"); 
+    }
+
     setForm({ ...form, name: "", link: "", notes: "", customPlatform: "", customTopic: "" }); 
     await onRefresh?.(); 
   };
@@ -450,6 +567,106 @@ function ProblemTable({ problems }: { problems: Problem[] }) {
 
 function Challenges({ challenges, users, problems }: { challenges: Challenge[]; users: RivalUser[]; problems: Problem[] }) {
   return <section className="animate-enter grid gap-4 lg:grid-cols-3">{challenges.map((challenge) => <div key={challenge.id} className="glass-panel rounded-2xl p-5"><Target className="mb-4 size-6 text-accent" /><h3 className="text-xl font-black">{challenge.title}</h3><p className="mb-4 text-sm text-muted-foreground">{challenge.topic} · Reward {challenge.reward}</p>{users.map((user) => { const count = problems.filter((problem) => problem.accountId === user.id && (problem.topic === challenge.topic || (challenge.topic === 'Easy' && problem.difficulty === 'Easy'))).length; return <div key={user.id} className="mb-3"><div className="mb-1 flex justify-between text-sm"><span>{user.emoji} {user.name}</span><span>{count}/{challenge.target}</span></div><div className="h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-primary" style={{ width: `${Math.min(100, (count / challenge.target) * 100)}%` }} /></div></div>; })}</div>)}</section>;
+}
+
+function HallOfFame({ users, problems }: { users: RivalUser[]; problems: Problem[] }) {
+  const ranked = [...users].map(user => ({
+    ...user,
+    stats: userStats(problems, user.id)
+  })).sort((a, b) => b.stats.streak - a.stats.streak);
+
+  return (
+    <section className="glass-panel animate-enter rounded-2xl p-6">
+      <div className="mb-8 text-center">
+        <Medal className="mx-auto mb-4 size-12 text-primary" />
+        <h3 className="text-4xl font-black">Streaks Hall of Fame</h3>
+        <p className="mt-2 text-muted-foreground text-lg">The arena of ultimate consistency.</p>
+      </div>
+      
+      <div className="grid gap-4">
+        {ranked.map((user, index) => (
+          <div key={user.id} className={`flex items-center justify-between rounded-2xl p-5 transition-all ${index === 0 ? "bg-primary/20 border-2 border-primary shadow-glow scale-[1.02]" : "bg-card/70 border border-border"}`}>
+            <div className="flex items-center gap-6">
+              <span className="text-4xl font-black italic text-primary/50">#{index + 1}</span>
+              <div>
+                <p className="text-xl font-bold">{user.emoji} {user.name}</p>
+                <p className="text-sm text-muted-foreground">Best Streak: {user.stats.streak} days</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="flex items-center justify-end gap-2 text-3xl font-black">
+                <Flame className={user.stats.streak > 10 ? "text-orange-500 animate-bounce" : "text-primary"} />
+                {user.stats.streak}
+              </div>
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Current Streak</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function WeeklyPledge({ currentAccountId, stats }: { currentAccountId: string; stats: any }) {
+  const [pledge, setPledge] = useState(() => localStorage.getItem(`pledge_${currentAccountId}`) || "5");
+  const [isEditing, setIsEditing] = useState(false);
+  const target = parseInt(pledge);
+  const progress = (stats.week / target) * 100;
+
+  const save = () => {
+    localStorage.setItem(`pledge_${currentAccountId}`, pledge);
+    setIsEditing(false);
+    toast.success("Pledge committed!", { description: `You've skin in the game now. Don't miss those ${pledge} problems.` });
+  };
+
+  return (
+    <div className="glass-panel rounded-2xl p-5 border-l-4 border-l-accent">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-bold flex items-center gap-2">
+          <ShieldCheck className="size-5 text-accent" /> Weekly Pledge
+        </h3>
+        {isEditing ? (
+          <button onClick={save} className="text-xs font-bold text-primary hover:underline">SAVE COMMITMENT</button>
+        ) : (
+          <button onClick={() => setIsEditing(true)} className="text-xs font-bold text-muted-foreground hover:text-foreground">EDIT PLEDGE</button>
+        )}
+      </div>
+      
+      {isEditing ? (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">How many problems will you solve this week?</p>
+          <input 
+            type="number" 
+            value={pledge} 
+            onChange={(e) => setPledge(e.target.value)}
+            className="w-full h-11 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex justify-between items-end">
+            <div>
+              <p className="text-sm text-muted-foreground uppercase font-bold tracking-tighter">Your Commitment</p>
+              <p className="text-2xl font-black">{stats.week} / {pledge} problems</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-bold text-accent">{Math.round(progress)}%</p>
+              <p className="text-[10px] text-muted-foreground uppercase">of target</p>
+            </div>
+          </div>
+          <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+            <div 
+              className={`h-full transition-all duration-1000 ${progress >= 100 ? "bg-green-500" : "bg-accent"}`} 
+              style={{ width: `${Math.min(100, progress)}%` }} 
+            />
+          </div>
+          <p className="text-xs italic text-muted-foreground">
+            {progress >= 100 ? "✅ Pledge fulfilled! Bragging rights unlocked." : `🔥 You need ${Math.max(0, target - stats.week)} more by Sunday.`}
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Analytics({ currentAccountId, users, problems }: { currentAccountId: string; users: RivalUser[]; problems: Problem[] }) {

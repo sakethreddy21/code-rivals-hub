@@ -32,19 +32,35 @@ export function mapUser(profile: Profile): RivalUser {
 }
 
 export function userStats(problems: Problem[], accountId: string) {
-  const mine = problems.filter((problem) => problem.accountId === accountId);
+  const mine = [...problems].filter((problem) => problem.accountId === accountId)
+    .sort((a, b) => +new Date(b.solvedAt) - +new Date(a.solvedAt));
+  
   const now = new Date();
   const todayKey = now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const yesterdayKey = yesterday.toDateString();
+
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - 6);
+  
   const solvedDays = new Set(mine.map((problem) => new Date(problem.solvedAt).toDateString()));
+  
+  const solvedToday = solvedDays.has(todayKey);
+  const solvedYesterday = solvedDays.has(yesterdayKey);
+
   let streak = 0;
-  for (let offset = 0; offset < 60; offset += 1) {
-    const date = new Date(now);
-    date.setDate(now.getDate() - offset);
-    if (!solvedDays.has(date.toDateString())) break;
-    streak += 1;
+  if (solvedToday || solvedYesterday) {
+    // Start counting from today or yesterday
+    let startOffset = solvedToday ? 0 : 1;
+    for (let offset = startOffset; offset < 365; offset += 1) {
+      const date = new Date(now);
+      date.setDate(now.getDate() - offset);
+      if (!solvedDays.has(date.toDateString())) break;
+      streak += 1;
+    }
   }
+
   return {
     total: mine.length,
     today: mine.filter((problem) => new Date(problem.solvedAt).toDateString() === todayKey).length,
@@ -52,7 +68,24 @@ export function userStats(problems: Problem[], accountId: string) {
     streak,
     hard: mine.filter((problem) => problem.difficulty === "Hard").length,
     minutes: mine.reduce((sum, problem) => sum + problem.timeTaken, 0),
+    solvedToday,
   };
+}
+
+export type StreakStatus = "Safe" | "Caution" | "Critical";
+
+export function getStreakStatus(solvedToday: boolean): { status: StreakStatus; message: string; color: string } {
+  if (solvedToday) {
+    return { status: "Safe", message: "Streak protected for today! 🔥", color: "text-green-500" };
+  }
+  
+  const hoursLeft = 24 - new Date().getHours();
+  
+  if (hoursLeft > 6) {
+    return { status: "Caution", message: "Your streak is at risk. Solve something soon!", color: "text-yellow-500" };
+  }
+  
+  return { status: "Critical", message: "FINAL CALL: Your streak will break in a few hours! 🚨", color: "text-red-500" };
 }
 
 export function getFriendId(currentAccountId: string, users: RivalUser[]) {
