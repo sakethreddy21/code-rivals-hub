@@ -14,7 +14,117 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      challenges: {
+        Row: {
+          created_at: string
+          id: string
+          reward: string
+          target: number
+          title: string
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reward: string
+          target: number
+          title: string
+          topic: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reward?: string
+          target?: number
+          title?: string
+          topic?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      problems: {
+        Row: {
+          created_at: string
+          difficulty: string
+          id: string
+          link: string
+          name: string
+          notes: string
+          platform: string
+          solved_at: string
+          time_taken: number
+          topic: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty: string
+          id?: string
+          link?: string
+          name: string
+          notes?: string
+          platform: string
+          solved_at?: string
+          time_taken?: number
+          topic: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty?: string
+          id?: string
+          link?: string
+          name?: string
+          notes?: string
+          platform?: string
+          solved_at?: string
+          time_taken?: number
+          topic?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string
+          emoji: string
+          id: string
+          rival_user_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          emoji?: string
+          id?: string
+          rival_user_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          emoji?: string
+          id?: string
+          rival_user_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
