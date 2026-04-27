@@ -284,7 +284,7 @@ function CompetitionApp({ currentAccountId, data, onRefresh, onLogout }: { curre
     toast.success("Logged out"); 
   };
 
-  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">Competition Tracker</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} friend={friend} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={data} users={users} />}{view === "leaderboard" && <Leaderboard users={users} problems={data.problems} />}{view === "log" && <LogProblem currentAccountId={currentAccountId} data={data} onRefresh={onRefresh} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={data.problems} />}{view === "friend-problems" && <FriendProblems currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "challenges" && <Challenges challenges={data.challenges} users={users} problems={data.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={users} problems={data.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
+  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">Competition Tracker</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} friend={friend} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} />}{view === "leaderboard" && <Leaderboard users={users} problems={data.problems} />}{view === "log" && <LogProblem currentAccountId={currentAccountId} data={data} onRefresh={onRefresh} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={data.problems} />}{view === "friend-problems" && <FriendProblems currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "challenges" && <Challenges challenges={data.challenges} users={users} problems={data.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={users} problems={data.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
 }
 
 function Header({ user, friend }: { user: RivalUser; friend: RivalUser }) {
@@ -293,14 +293,14 @@ function Header({ user, friend }: { user: RivalUser; friend: RivalUser }) {
   return <header className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card/70 p-5 shadow-card sm:flex-row sm:items-center"><div><p className="text-sm font-semibold text-primary">Rival: {friend.name} {friend.emoji}</p><h2 className="text-3xl font-black">{greeting}, {user.name}! {user.emoji}</h2></div><div className="rounded-xl bg-secondary px-4 py-3 text-sm text-muted-foreground"><Flame className="mr-2 inline size-4 text-accent" /> Live shared progress.</div></header>;
 }
 
-function Dashboard({ currentAccountId, data, users }: { currentAccountId: string; data: AppData; users: RivalUser[] }) {
+function Dashboard({ currentAccountId, data, users, onRefresh }: { currentAccountId: string; data: AppData; users: RivalUser[]; onRefresh: () => Promise<void> }) {
   const mine = userStats(data.problems, currentAccountId);
   const friendId = getFriendId(currentAccountId, users);
   const rival = userStats(data.problems, friendId);
   const user = users.find((item) => item.id === currentAccountId)!;
   const friend = users.find((item) => item.id === friendId) ?? user;
   const recent = [...data.problems].sort((a, b) => +new Date(b.solvedAt) - +new Date(a.solvedAt)).slice(0, 6);
-  return <section className="animate-enter space-y-6"><div className="grid gap-4 md:grid-cols-4">{([{ label: "Total Solved", value: mine.total, Icon: Trophy }, { label: "Today", value: mine.today, Icon: Zap }, { label: "Current Streak", value: `${mine.streak} days`, Icon: Flame }, { label: "Weekly Progress", value: mine.week, Icon: Activity }] satisfies Array<{ label: string; value: React.ReactNode; Icon: LucideIcon }>).map((item) => <StatCard key={item.label} {...item} />)}</div><div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]"><div className="glass-panel rounded-2xl p-5"><h3 className="mb-4 text-xl font-bold">Friend Comparison</h3><div className="grid gap-4 sm:grid-cols-2"><RivalCard user={user} stats={mine} highlight /><RivalCard user={friend} stats={rival} /></div></div><div className="glass-panel rounded-2xl p-5"><h3 className="mb-4 text-xl font-bold">Quick Log Solved Problem</h3><LogProblem currentAccountId={currentAccountId} data={data} compact /></div></div><div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]"><RecentActivity problems={recent} users={users} /><Heatmap currentAccountId={currentAccountId} problems={data.problems} /></div></section>;
+  return <section className="animate-enter space-y-6"><div className="grid gap-4 md:grid-cols-4">{([{ label: "Total Solved", value: mine.total, Icon: Trophy }, { label: "Today", value: mine.today, Icon: Zap }, { label: "Current Streak", value: `${mine.streak} days`, Icon: Flame }, { label: "Weekly Progress", value: mine.week, Icon: Activity }] satisfies Array<{ label: string; value: React.ReactNode; Icon: LucideIcon }>).map((item) => <StatCard key={item.label} {...item} />)}</div><div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]"><div className="glass-panel rounded-2xl p-5"><h3 className="mb-4 text-xl font-bold">Friend Comparison</h3><div className="grid gap-4 sm:grid-cols-2"><RivalCard user={user} stats={mine} highlight /><RivalCard user={friend} stats={rival} /></div></div><div className="glass-panel rounded-2xl p-5"><h3 className="mb-4 text-xl font-bold">Quick Log Solved Problem</h3><LogProblem currentAccountId={currentAccountId} data={data} compact onRefresh={onRefresh} /></div></div><div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]"><RecentActivity problems={recent} users={users} /><Heatmap currentAccountId={currentAccountId} problems={data.problems} /></div></section>;
 }
 
 function StatCard({ label, value, Icon }: { label: string; value: React.ReactNode; Icon: LucideIcon }) {
@@ -449,15 +449,87 @@ function ProblemTable({ problems }: { problems: Problem[] }) {
 }
 
 function Challenges({ challenges, users, problems }: { challenges: Challenge[]; users: RivalUser[]; problems: Problem[] }) {
-  return <section className="animate-enter grid gap-4 lg:grid-cols-3">{challenges.map((challenge) => <div key={challenge.id} className="glass-panel rounded-2xl p-5"><Target className="mb-4 size-6 text-accent" /><h3 className="text-xl font-black">{challenge.title}</h3><p className="mb-4 text-sm text-muted-foreground">{challenge.topic} · Reward {challenge.reward}</p>{users.map((user) => { const count = problems.filter((problem) => problem.id === user.id && (problem.topic === challenge.topic || (challenge.topic === 'Easy' && problem.difficulty === 'Easy'))).length; return <div key={user.id} className="mb-3"><div className="mb-1 flex justify-between text-sm"><span>{user.emoji} {user.name}</span><span>{count}/{challenge.target}</span></div><div className="h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-primary" style={{ width: `${Math.min(100, (count / challenge.target) * 100)}%` }} /></div></div>; })}</div>)}</section>;
+  return <section className="animate-enter grid gap-4 lg:grid-cols-3">{challenges.map((challenge) => <div key={challenge.id} className="glass-panel rounded-2xl p-5"><Target className="mb-4 size-6 text-accent" /><h3 className="text-xl font-black">{challenge.title}</h3><p className="mb-4 text-sm text-muted-foreground">{challenge.topic} · Reward {challenge.reward}</p>{users.map((user) => { const count = problems.filter((problem) => problem.accountId === user.id && (problem.topic === challenge.topic || (challenge.topic === 'Easy' && problem.difficulty === 'Easy'))).length; return <div key={user.id} className="mb-3"><div className="mb-1 flex justify-between text-sm"><span>{user.emoji} {user.name}</span><span>{count}/{challenge.target}</span></div><div className="h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-primary" style={{ width: `${Math.min(100, (count / challenge.target) * 100)}%` }} /></div></div>; })}</div>)}</section>;
 }
 
 function Analytics({ currentAccountId, users, problems }: { currentAccountId: string; users: RivalUser[]; problems: Problem[] }) {
   const friendId = getFriendId(currentAccountId, users);
   const mine = problems.filter((problem) => problem.accountId === currentAccountId);
   const friend = problems.filter((problem) => problem.accountId === friendId);
-  const byTopic = useMemo(() => topics.slice(0, 6).map((topic) => ({ topic, mine: mine.filter((p) => p.topic === topic).length, friend: friend.filter((p) => p.topic === topic).length })), [mine, friend]);
-  return <section className="glass-panel animate-enter rounded-2xl p-5"><h3 className="mb-5 text-2xl font-black">Analytics</h3><div className="space-y-4">{byTopic.map((row) => <div key={row.topic} className="grid items-center gap-3 sm:grid-cols-[140px_1fr_48px]"><span className="font-semibold">{row.topic}</span><div className="space-y-2"><div className="h-3 rounded-full bg-muted"><div className="h-3 rounded-full bg-primary" style={{ width: `${Math.min(100, row.mine * 18)}%` }} /></div><div className="h-3 rounded-full bg-muted"><div className="h-3 rounded-full bg-accent" style={{ width: `${Math.min(100, row.friend * 18)}%` }} /></div></div><span className="text-sm text-muted-foreground">{row.mine}/{row.friend}</span></div>)}</div><p className="mt-5 text-sm text-muted-foreground"><span className="text-primary">Primary</span> is you, <span className="text-accent">accent</span> is your friend.</p></section>;
+  
+  const byTopic = useMemo(() => {
+    const allTopics = Array.from(new Set(problems.map(p => p.topic))).filter(Boolean).sort();
+    const topicsToShow = allTopics.length > 0 ? allTopics : topics.filter(t => t !== "Custom...").slice(0, 6);
+    return topicsToShow.map((topic) => ({ 
+      topic, 
+      mine: mine.filter((p) => p.topic === topic).length, 
+      friend: friend.filter((p) => p.topic === topic).length 
+    }));
+  }, [mine, friend, problems]);
+
+  const byPlatform = useMemo(() => {
+    const allPlatforms = Array.from(new Set(problems.map(p => p.platform))).filter(Boolean).sort();
+    const platformsToShow = allPlatforms.length > 0 ? allPlatforms : platforms.filter(p => p !== "Custom...").slice(0, 4);
+    return platformsToShow.map((platform) => ({ 
+      platform, 
+      mine: mine.filter((p) => p.platform === platform).length, 
+      friend: friend.filter((p) => p.platform === platform).length 
+    }));
+  }, [mine, friend, problems]);
+
+  return (
+    <section className="animate-enter space-y-6">
+      <div className="glass-panel rounded-2xl p-5">
+        <h3 className="mb-5 text-2xl font-black">Analytics by Topic</h3>
+        <div className="space-y-4">
+          {byTopic.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No problems logged yet to show topic analytics.</p>
+          ) : (
+            byTopic.map((row) => (
+              <div key={row.topic} className="grid items-center gap-3 sm:grid-cols-[140px_1fr_48px]">
+                <span className="font-semibold truncate" title={row.topic}>{row.topic}</span>
+                <div className="space-y-2">
+                  <div className="h-3 rounded-full bg-muted">
+                    <div className="h-3 rounded-full bg-primary transition-all duration-500" style={{ width: `${Math.min(100, row.mine * 18)}%` }} />
+                  </div>
+                  <div className="h-3 rounded-full bg-muted">
+                    <div className="h-3 rounded-full bg-accent transition-all duration-500" style={{ width: `${Math.min(100, row.friend * 18)}%` }} />
+                  </div>
+                </div>
+                <span className="text-sm text-muted-foreground">{row.mine}/{row.friend}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="glass-panel rounded-2xl p-5">
+        <h3 className="mb-5 text-2xl font-black">Analytics by Platform</h3>
+        <div className="space-y-4">
+          {byPlatform.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No problems logged yet to show platform analytics.</p>
+          ) : (
+            byPlatform.map((row) => (
+              <div key={row.platform} className="grid items-center gap-3 sm:grid-cols-[140px_1fr_48px]">
+                <span className="font-semibold truncate" title={row.platform}>{row.platform}</span>
+                <div className="space-y-2">
+                  <div className="h-3 rounded-full bg-muted">
+                    <div className="h-3 rounded-full bg-primary transition-all duration-500" style={{ width: `${Math.min(100, row.mine * 18)}%` }} />
+                  </div>
+                  <div className="h-3 rounded-full bg-muted">
+                    <div className="h-3 rounded-full bg-accent transition-all duration-500" style={{ width: `${Math.min(100, row.friend * 18)}%` }} />
+                  </div>
+                </div>
+                <span className="text-sm text-muted-foreground">{row.mine}/{row.friend}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+      
+      <p className="mt-5 text-sm text-muted-foreground"><span className="text-primary font-bold">Primary</span> is you, <span className="text-accent font-bold">Accent</span> is your friend.</p>
+    </section>
+  );
 }
 
 function Profile({ currentAccountId, profiles, users, problems, onRefresh, onLogout }: { currentAccountId: string; profiles: ProfileType[]; users: RivalUser[]; problems: Problem[]; onRefresh: () => Promise<void>; onLogout: () => void }) {
