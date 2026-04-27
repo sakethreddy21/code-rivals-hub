@@ -26,47 +26,26 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { 
+  AppData, 
+  Challenge, 
+  Problem, 
+  Profile as ProfileType, 
+  RivalUser 
+} from "@/types/rivals";
+import { 
+  difficulties, 
+  getFriendId, 
+  loadAppData, 
+  mapUser, 
+  platforms, 
+  topics, 
+  userStats 
+} from "@/lib/rivals";
 
 export const Route = createFileRoute("/")({
   component: Index,
 });
-
-type Difficulty = "Easy" | "Medium" | "Hard";
-
-// Custom types matching our new schema
-type Account = { id: string; username: string };
-type Profile = {
-  id: string;
-  account_id: string;
-  username: string;
-  display_name: string;
-  emoji: string;
-  title: string;
-  rival_user_id: string | null;
-  created_at: string;
-};
-type Problem = {
-  id: string;
-  accountId: string;
-  name: string;
-  link: string;
-  platform: string;
-  difficulty: Difficulty;
-  topic: string;
-  timeTaken: number;
-  notes: string;
-  solvedAt: string;
-};
-type Challenge = {
-  id: string;
-  title: string;
-  target: number;
-  topic: string;
-  reward: string;
-};
-
-type RivalUser = { id: string; name: string; emoji: string; title: string; username: string; rivalUserId: string | null };
-type AppData = { profiles: Profile[]; problems: Problem[]; challenges: Challenge[] };
 
 type ViewId = (typeof navItems)[number]["id"];
 
@@ -80,81 +59,6 @@ const navItems = [
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "profile", label: "Profile", icon: User },
 ] as const;
-
-const platforms = ["LeetCode", "NeetCode", "Codeforces", "HackerRank", "Custom..."];
-const difficulties = ["Easy", "Medium", "Hard"] as const;
-const topics = ["Arrays", "Graphs", "DP", "Trees", "Heap", "Sliding Window", "Binary Search", "Backtracking", "Custom..."];
-
-function mapProblem(problem: any): Problem {
-  return {
-    id: problem.id,
-    accountId: problem.account_id,
-    name: problem.name,
-    link: problem.link,
-    platform: problem.platform,
-    difficulty: problem.difficulty as Difficulty,
-    topic: problem.topic,
-    timeTaken: problem.time_taken,
-    notes: problem.notes,
-    solvedAt: problem.solved_at,
-  };
-}
-
-function mapUser(profile: Profile): RivalUser {
-  return {
-    id: profile.account_id,
-    name: profile.display_name,
-    emoji: profile.emoji,
-    title: profile.title,
-    username: profile.username,
-    rivalUserId: profile.rival_user_id,
-  };
-}
-
-function userStats(problems: Problem[], accountId: string) {
-  const mine = problems.filter((problem) => problem.accountId === accountId);
-  const now = new Date();
-  const todayKey = now.toDateString();
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - 6);
-  const solvedDays = new Set(mine.map((problem) => new Date(problem.solvedAt).toDateString()));
-  let streak = 0;
-  for (let offset = 0; offset < 60; offset += 1) {
-    const date = new Date(now);
-    date.setDate(now.getDate() - offset);
-    if (!solvedDays.has(date.toDateString())) break;
-    streak += 1;
-  }
-  return {
-    total: mine.length,
-    today: mine.filter((problem) => new Date(problem.solvedAt).toDateString() === todayKey).length,
-    week: mine.filter((problem) => new Date(problem.solvedAt) >= weekStart).length,
-    streak,
-    hard: mine.filter((problem) => problem.difficulty === "Hard").length,
-    minutes: mine.reduce((sum, problem) => sum + problem.timeTaken, 0),
-  };
-}
-
-function getFriendId(currentAccountId: string, users: RivalUser[]) {
-  const current = users.find((user) => user.id === currentAccountId);
-  return current?.rivalUserId || users.find((user) => user.id !== currentAccountId)?.id || currentAccountId;
-}
-
-async function loadAppData(): Promise<AppData> {
-  const [profilesResult, problemsResult, challengesResult] = await Promise.all([
-    supabase.from("profiles").select("*").order("created_at", { ascending: true }),
-    supabase.from("problems").select("*").order("solved_at", { ascending: false }),
-    supabase.from("challenges").select("*").order("id", { ascending: true }),
-  ]);
-  if (profilesResult.error) throw profilesResult.error;
-  if (problemsResult.error) throw problemsResult.error;
-  if (challengesResult.error) throw challengesResult.error;
-  return {
-    profiles: (profilesResult.data ?? []) as any as Profile[],
-    problems: (problemsResult.data ?? []).map(mapProblem),
-    challenges: (challengesResult.data ?? []) as any as Challenge[],
-  };
-}
 
 function Index() {
   const [currentAccountId, setCurrentAccountId] = useState<string | null>(localStorage.getItem("rivals_account_id"));
@@ -554,7 +458,7 @@ function Analytics({ currentAccountId, users, problems }: { currentAccountId: st
   return <section className="glass-panel animate-enter rounded-2xl p-5"><h3 className="mb-5 text-2xl font-black">Analytics</h3><div className="space-y-4">{byTopic.map((row) => <div key={row.topic} className="grid items-center gap-3 sm:grid-cols-[140px_1fr_48px]"><span className="font-semibold">{row.topic}</span><div className="space-y-2"><div className="h-3 rounded-full bg-muted"><div className="h-3 rounded-full bg-primary" style={{ width: `${Math.min(100, row.mine * 18)}%` }} /></div><div className="h-3 rounded-full bg-muted"><div className="h-3 rounded-full bg-accent" style={{ width: `${Math.min(100, row.friend * 18)}%` }} /></div></div><span className="text-sm text-muted-foreground">{row.mine}/{row.friend}</span></div>)}</div><p className="mt-5 text-sm text-muted-foreground"><span className="text-primary">Primary</span> is you, <span className="text-accent">accent</span> is your friend.</p></section>;
 }
 
-function Profile({ currentAccountId, profiles, users, problems, onRefresh }: { currentAccountId: string; profiles: Profile[]; users: RivalUser[]; problems: Problem[]; onRefresh: () => Promise<void> }) {
+function Profile({ currentAccountId, profiles, users, problems, onRefresh }: { currentAccountId: string; profiles: ProfileType[]; users: RivalUser[]; problems: Problem[]; onRefresh: () => Promise<void> }) {
   const profile = profiles.find((item) => item.account_id === currentAccountId)!;
   const user = mapUser(profile);
   const stats = userStats(problems, currentAccountId);
