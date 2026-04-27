@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { AppData, Difficulty, Problem, Profile, RivalUser } from "@/types/rivals";
+import { AppData, Challenge, Difficulty, Problem, Profile, RivalUser } from "@/types/rivals";
 
 export const platforms = ["LeetCode", "NeetCode", "Codeforces", "HackerRank", "Custom..."];
 export const difficulties = ["Easy", "Medium", "Hard"] as const;
