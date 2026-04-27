@@ -3,6 +3,7 @@ import {
   Activity,
   BarChart3,
   BookOpenCheck,
+  ExternalLink,
   Flame,
   LayoutDashboard,
   ListFilter,
@@ -33,6 +34,7 @@ const navItems = [
   { id: "leaderboard", label: "Leaderboard", icon: Trophy },
   { id: "log", label: "Log Problem", icon: Plus },
   { id: "problems", label: "My Problems", icon: BookOpenCheck },
+  { id: "friend-problems", label: "Friend Solved", icon: Swords },
   { id: "challenges", label: "Challenges", icon: Target },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "profile", label: "Profile", icon: User },
@@ -160,6 +162,7 @@ function CompetitionApp({ currentUserId }: { currentUserId: UserId }) {
         {view === "leaderboard" && <Leaderboard />}
         {view === "log" && <LogProblem />}
         {view === "problems" && <MyProblems currentUserId={currentUserId} />}
+        {view === "friend-problems" && <FriendProblems currentUserId={currentUserId} />}
         {view === "challenges" && <Challenges />}
         {view === "analytics" && <Analytics currentUserId={currentUserId} />}
         {view === "profile" && <Profile currentUserId={currentUserId} />}
