@@ -17,6 +17,7 @@ import {
   User,
   Zap,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -192,9 +193,12 @@ function Dashboard({ currentUserId }: { currentUserId: UserId }) {
   const recent = [...problems].sort((a, b) => +new Date(b.solvedAt) - +new Date(a.solvedAt)).slice(0, 6);
 
   return <section className="animate-enter space-y-6">
-    <div className="grid gap-4 md:grid-cols-4">{[
-      ["Total Solved", mine.total, Trophy], ["Today", mine.today, Zap], ["Current Streak", `${mine.streak} days`, Flame], ["Weekly Progress", mine.week, Activity],
-    ].map(([label, value, Icon]) => <StatCard key={label as string} label={label as string} value={value} Icon={Icon as typeof Trophy} />)}</div>
+    <div className="grid gap-4 md:grid-cols-4">{([
+      { label: "Total Solved", value: mine.total, Icon: Trophy },
+      { label: "Today", value: mine.today, Icon: Zap },
+      { label: "Current Streak", value: `${mine.streak} days`, Icon: Flame },
+      { label: "Weekly Progress", value: mine.week, Icon: Activity },
+    ] satisfies Array<{ label: string; value: React.ReactNode; Icon: LucideIcon }>).map((item) => <StatCard key={item.label} {...item} />)}</div>
     <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
       <div className="glass-panel rounded-2xl p-5"><h3 className="mb-4 text-xl font-bold">Friend Comparison</h3><div className="grid gap-4 sm:grid-cols-2"><RivalCard user={user} stats={mine} highlight /><RivalCard user={friend} stats={rival} /></div></div>
       <QuickLog />
@@ -203,7 +207,7 @@ function Dashboard({ currentUserId }: { currentUserId: UserId }) {
   </section>;
 }
 
-function StatCard({ label, value, Icon }: { label: string; value: React.ReactNode; Icon: typeof Trophy }) {
+function StatCard({ label, value, Icon }: { label: string; value: React.ReactNode; Icon: LucideIcon }) {
   return <div className="card-gradient rounded-2xl border border-border p-5 shadow-card transition hover:-translate-y-1"><Icon className="mb-4 size-5 text-primary" /><p className="text-sm text-muted-foreground">{label}</p><p className="mt-1 text-3xl font-black">{value}</p></div>;
 }
 
