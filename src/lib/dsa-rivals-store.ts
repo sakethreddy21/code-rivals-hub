@@ -125,7 +125,7 @@ export const useDsaRivalsStore = create<DsaRivalsState>()(
         }),
     }),
     {
-      name: "dsa-rivals-demo",
+      name: "algobuilding-demo",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ problems: state.problems, currentUserId: state.currentUserId }),
     },

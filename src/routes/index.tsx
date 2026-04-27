@@ -73,8 +73,8 @@ function LoginPage() {
             <Swords className="size-4 text-primary" /> Two friends. One streak war.
           </div>
           <h1 className="max-w-3xl text-5xl font-black leading-tight tracking-normal sm:text-7xl">
-            DSA Rivals
-            <span className="block text-primary">CodeDuel Tracker</span>
+            AlgoBuilding
+            <span className="block text-primary">Competition Tracker</span>
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">
             A focused competition hub for Alex and Sam to log solved problems, protect streaks, compare progress, and keep daily practice fun.
@@ -133,7 +133,7 @@ function CompetitionApp({ currentUserId }: { currentUserId: UserId }) {
         <div className="flex items-center justify-between lg:block">
           <div className="flex items-center gap-3">
             <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div>
-            <div><p className="font-black">DSA Rivals</p><p className="text-xs text-muted-foreground">CodeDuel Tracker</p></div>
+            <div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">Competition Tracker</p></div>
           </div>
           <Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button>
         </div>
