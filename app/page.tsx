@@ -25,8 +25,19 @@ import type { LucideIcon } from "lucide-react";
 import confetti from "canvas-confetti";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { Button } from "@/components/ui/button";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   AppData, 
@@ -53,8 +64,6 @@ const navItems = [
   { id: "leaderboard", label: "Leaderboard", icon: Trophy },
   { id: "log", label: "Log Problem", icon: Plus },
   { id: "problems", label: "My Problems", icon: BookOpenCheck },
-  { id: "friend-problems", label: "Friend Solved", icon: Swords },
-  { id: "challenges", label: "Challenges", icon: Target },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "hall-of-fame", label: "Hall of Fame", icon: Medal },
   { id: "requests", label: "Squad Requests", icon: UserPlus },
@@ -316,7 +325,7 @@ function CompetitionApp({ currentAccountId, data, onRefresh, onLogout }: { curre
     toast.success("Logged out"); 
   };
 
-  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">The Arena</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} friend={friend} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} />}{view === "leaderboard" && <Leaderboard users={users} problems={data.problems} />}{view === "log" && <LogProblem currentAccountId={currentAccountId} data={data} onRefresh={onRefresh} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={data.problems} />}{view === "friend-problems" && <FriendProblems currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "challenges" && <Challenges challenges={data.challenges} users={users} problems={data.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "hall-of-fame" && <HallOfFame users={users} problems={data.problems} />}{view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={users} onRefresh={onRefresh} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={users} problems={data.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
+  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">The Arena</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} friend={friend} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} />}{view === "leaderboard" && <Leaderboard users={users} problems={data.problems} />}{view === "log" && <LogProblem currentAccountId={currentAccountId} data={data} onRefresh={onRefresh} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={data.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "hall-of-fame" && <HallOfFame users={users} problems={data.problems} />}{view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={users} onRefresh={onRefresh} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={users} problems={data.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
 }
 
 function Header({ user, friend }: { user: MutualUser; friend: MutualUser }) {
@@ -331,12 +340,46 @@ function Dashboard({ currentAccountId, data, users, onRefresh }: { currentAccoun
   const rival = userStats(data.problems, friendId);
   const user = users.find((item) => item.id === currentAccountId)!;
   const friend = users.find((item) => item.id === friendId) ?? user;
-  const recent = [...data.problems].sort((a, b) => +new Date(b.solvedAt) - +new Date(a.solvedAt)).slice(0, 6);
+  const [tab, setTab] = useState<"overview" | "today-target">("overview");
 
   const streakInfo = getStreakStatus(mine.solvedToday);
 
   return (
     <section className="animate-enter space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border border-border bg-secondary/40 p-1">
+          <button
+            type="button"
+            onClick={() => setTab("overview")}
+            className={`px-3 py-2 text-xs font-black transition ${
+              tab === "overview"
+                ? "rounded-md bg-primary text-primary-foreground shadow-glow"
+                : "rounded-md text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("today-target")}
+            className={`px-3 py-2 text-xs font-black transition ${
+              tab === "today-target"
+                ? "rounded-md bg-primary text-primary-foreground shadow-glow"
+                : "rounded-md text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Today Target
+          </button>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {tab === "today-target" ? "Post 4 links and race." : "Your arena overview."}
+        </div>
+      </div>
+
+      {tab === "today-target" ? (
+        <TodayTarget currentAccountId={currentAccountId} users={users} onRefresh={onRefresh} data={data} />
+      ) : (
+        <>
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard label="Total Solved" value={mine.total} Icon={Trophy} />
         <StatCard label="Today" value={mine.today} Icon={Zap} />
@@ -370,11 +413,416 @@ function Dashboard({ currentAccountId, data, users, onRefresh }: { currentAccoun
           <LogProblem currentAccountId={currentAccountId} data={data} compact onRefresh={onRefresh} />
         </div>
       </div>
-      <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
-        <RecentActivity problems={recent} users={users} />
+      <div className="grid gap-6">
         <Heatmap currentAccountId={currentAccountId} problems={data.problems} />
       </div>
+        </>
+      )}
     </section>
+  );
+}
+
+function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAccountId: string; users: MutualUser[]; onRefresh?: () => Promise<void>; data?: AppData }) {
+  const dayKey = useMemo(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }, []);
+
+  const [links, setLinks] = useState<string[]>(["", "", "", ""]);
+  const [busy, setBusy] = useState(false);
+  const [solvedDraft, setSolvedDraft] = useState<Record<string, boolean>>({});
+  const [solvedMeta, setSolvedMeta] = useState<Record<string, { difficulty: string; timeTaken: string }>>({});
+  const [alreadyLogged, setAlreadyLogged] = useState<Record<string, boolean>>({});
+  const [saveProgressBusy, setSaveProgressBusy] = useState(false);
+  const userNameById = useMemo(() => new Map(users.map((u) => [u.id, `${u.emoji} ${u.name}`])), [users]);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      const { data: row, error } = await (supabase as any)
+        .from("today_targets")
+        .select("links")
+        .eq("day", dayKey)
+        .maybeSingle();
+
+      if (!mounted) return;
+
+      if (!error && (row as any)?.links) {
+        const arr = Array.isArray((row as any).links) ? ((row as any).links as string[]) : [];
+        setLinks([arr[0] ?? "", arr[1] ?? "", arr[2] ?? "", arr[3] ?? ""]);
+        return;
+      }
+
+      const local = localStorage.getItem(`today_targets_${dayKey}`);
+      if (local) {
+        try {
+          const arr = JSON.parse(local) as string[];
+          if (Array.isArray(arr)) setLinks([arr[0] ?? "", arr[1] ?? "", arr[2] ?? "", arr[3] ?? ""]);
+        } catch {}
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [dayKey]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadSolved = async () => {
+      const localKey = `today_target_solved_${dayKey}_${currentAccountId}`;
+      const local = localStorage.getItem(localKey);
+      if (local) {
+        try {
+          const obj = JSON.parse(local) as Record<string, boolean>;
+          if (mounted && obj && typeof obj === "object") setSolvedDraft(obj);
+        } catch {}
+      }
+
+      const loggedKey = `today_target_logged_${dayKey}_${currentAccountId}`;
+      try {
+        const saved = JSON.parse(localStorage.getItem(loggedKey) || "{}");
+        if (mounted && saved && typeof saved === "object") setAlreadyLogged(saved);
+      } catch {}
+
+      const { data: rows, error } = await (supabase as any)
+        .from("today_target_solutions")
+        .select("slot, solved")
+        .eq("day", dayKey)
+        .eq("account_id", currentAccountId);
+
+      if (!mounted) return;
+      if (!error && Array.isArray(rows)) {
+        const next: Record<string, boolean> = {};
+        for (const row of rows as any[]) {
+          next[String(row.slot)] = !!row.solved;
+        }
+        setSolvedDraft(next);
+      }
+    };
+    loadSolved();
+    return () => { mounted = false; };
+  }, [dayKey, currentAccountId]);
+
+  const deriveName = (url: string, idx: number) => {
+    try {
+      const pathname = new URL(url).pathname;
+      const slug = pathname.split("/").filter(Boolean).pop() || "";
+      return slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || `Target ${idx + 1}`;
+    } catch {
+      return `Target ${idx + 1}`;
+    }
+  };
+
+  const derivePlatform = (url: string) => {
+    try {
+      const host = new URL(url).hostname.toLowerCase();
+      if (host.includes("leetcode")) return "LeetCode";
+      if (host.includes("geeksforgeeks") || host.includes("gfg")) return "GeeksforGeeks";
+      if (host.includes("codeforces")) return "Codeforces";
+      if (host.includes("codechef")) return "CodeChef";
+      if (host.includes("hackerrank")) return "HackerRank";
+      if (host.includes("hackerearth")) return "HackerEarth";
+      if (host.includes("atcoder")) return "AtCoder";
+      return "Other";
+    } catch {
+      return "Other";
+    }
+  };
+
+  const save = async () => {
+    const cleaned = links.map((l) => l.trim()).slice(0, 4);
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("today_targets")
+        .upsert({ day: dayKey, links: cleaned }, { onConflict: "day" });
+
+      if (error) {
+        localStorage.setItem(`today_targets_${dayKey}`, JSON.stringify(cleaned));
+        toast.success("Saved (local)", { description: "Create `today_targets` table in Supabase to sync across users." });
+      } else {
+        toast.success("Saved targets", { description: "Shared with the squad." });
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveProgress = async () => {
+    const cleaned: Record<string, boolean> = {};
+    for (let slot = 0; slot < 4; slot++) {
+      cleaned[String(slot)] = !!solvedDraft[String(slot)];
+    }
+
+    setSaveProgressBusy(true);
+    const newAlreadyLogged = { ...alreadyLogged };
+    let newlyLoggedCount = 0;
+
+    try {
+      const localKey = `today_target_solved_${dayKey}_${currentAccountId}`;
+      localStorage.setItem(localKey, JSON.stringify(cleaned));
+
+      for (let slot = 0; slot < 4; slot++) {
+        const slotKey = String(slot);
+        const link = links[slot]?.trim();
+        if (cleaned[slotKey] && link && !alreadyLogged[slotKey]) {
+          const meta = solvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
+          const { error } = await supabase.from("problems" as any).insert({
+            account_id: currentAccountId,
+            name: deriveName(link, slot),
+            link,
+            platform: derivePlatform(link),
+            difficulty: meta.difficulty,
+            topic: "Target Problem",
+            time_taken: Number(meta.timeTaken) || 0,
+            notes: `Today’s Target -- Slot ${slot + 1}`,
+          });
+          if (!error) {
+            newAlreadyLogged[slotKey] = true;
+            newlyLoggedCount++;
+          }
+        }
+      }
+
+      const loggedKey = `today_target_logged_${dayKey}_${currentAccountId}`;
+      localStorage.setItem(loggedKey, JSON.stringify(newAlreadyLogged));
+      setAlreadyLogged(newAlreadyLogged);
+
+      const rows = Array.from({ length: 4 }, (_, slot) => ({
+        day: dayKey,
+        slot,
+        account_id: currentAccountId,
+        solved: !!cleaned[String(slot)],
+        solved_at: cleaned[String(slot)] ? new Date().toISOString() : null,
+      }));
+
+      const { error } = await (supabase as any)
+        .from("today_target_solutions")
+        .upsert(rows, { onConflict: "day,slot,account_id" });
+
+      if (error) {
+        toast.success("Progress saved (local)", { description: "Create `today_target_solutions` table to sync between users." });
+      } else if (newlyLoggedCount > 0) {
+        toast.success(`Progress saved · ${newlyLoggedCount} problem${newlyLoggedCount > 1 ? "s" : ""} logged!`);
+      } else {
+        toast.success("Progress saved");
+      }
+
+      await onRefresh?.();
+    } finally {
+      setSaveProgressBusy(false);
+    }
+  };
+
+  const [allSolved, setAllSolved] = useState<Record<string, Set<string>>>({});
+  useEffect(() => {
+    let mounted = true;
+    const loadAll = async () => {
+      const { data: rows, error } = await (supabase as any)
+        .from("today_target_solutions")
+        .select("slot, account_id, solved")
+        .eq("day", dayKey);
+      if (!mounted) return;
+      if (!error && Array.isArray(rows)) {
+        const map: Record<string, Set<string>> = {};
+        for (const row of rows as any[]) {
+          if (!row.solved) continue;
+          const k = String(row.slot);
+          map[k] = map[k] ?? new Set<string>();
+          map[k]!.add(String(row.account_id));
+        }
+        setAllSolved(map);
+      } else {
+        setAllSolved({});
+      }
+    };
+    loadAll();
+    const interval = setInterval(loadAll, 4000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, [dayKey]);
+
+  const difficultyTabs = ["Easy", "Medium", "Hard"] as const;
+  const timeTabs = [{ label: "15m", value: "15" }, { label: "30m", value: "30" }, { label: "45m", value: "45" }, { label: "60m", value: "60" }] as const;
+
+  return (
+    <div className="space-y-6">
+      <div className="glass-panel rounded-2xl p-5">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div>
+            <h3 className="text-2xl font-black">Today Target</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Shared notice board. Check what you solved -- it gets logged to your profile.</p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button variant="secondary" onClick={save} disabled={busy}>
+              {busy ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Save Targets
+            </Button>
+            <Button variant="rival" onClick={saveProgress} disabled={saveProgressBusy}>
+              {saveProgressBusy ? <Loader2 className="animate-spin" /> : <Zap />} Save My Progress
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4">
+          {links.map((link, idx) => {
+            const slotKey = String(idx);
+            const isSolved = !!solvedDraft[slotKey];
+            const isLogged = !!alreadyLogged[slotKey];
+            const meta = solvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
+
+            return (
+              <div key={idx} className="grid gap-2">
+                <div className="relative">
+                  <input
+                    value={link}
+                    onChange={(e) => {
+                      const next = [...links];
+                      next[idx] = e.target.value;
+                      setLinks(next);
+                    }}
+                    className="h-11 w-full rounded-lg border border-input bg-background/70 px-3 pr-28 outline-none focus:ring-2 focus:ring-primary/30"
+                    placeholder={`Target ${idx + 1} link`}
+                  />
+                  <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                    <label className={`inline-flex h-8 cursor-pointer select-none items-center gap-2 rounded-md border px-3 text-xs font-black transition ${isLogged && isSolved ? "border-green-500/50 bg-green-500/10 text-green-400" : "border-border bg-secondary/50"} ${!link.trim() ? "opacity-40" : ""}`}>
+                      <input
+                        type="checkbox"
+                        className="accent-primary"
+                        disabled={!link.trim()}
+                        checked={isSolved}
+                        onChange={(e) => setSolvedDraft((s) => ({ ...s, [slotKey]: e.target.checked }))}
+                      />
+                      {isLogged && isSolved ? "Logged" : "Solved"}
+                    </label>
+                  </div>
+                </div>
+
+                {isSolved && link.trim() && !isLogged && (
+                  <div className="ml-1 flex flex-wrap items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                    <span className="text-xs text-muted-foreground">Difficulty:</span>
+                    <div className="inline-flex rounded-md border border-border bg-secondary/40 p-0.5">
+                      {difficultyTabs.map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setSolvedMeta((m) => ({ ...m, [slotKey]: { ...meta, difficulty: d } }))}
+                          className={`rounded-sm px-2 py-1 text-xs font-bold transition ${meta.difficulty === d ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground hover:text-foreground"}`}
+                        >
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-xs text-muted-foreground">Time:</span>
+                    <div className="inline-flex rounded-md border border-border bg-secondary/40 p-0.5">
+                      {timeTabs.map((t) => (
+                        <button
+                          key={t.value}
+                          type="button"
+                          onClick={() => setSolvedMeta((m) => ({ ...m, [slotKey]: { ...meta, timeTaken: t.value } }))}
+                          className={`rounded-sm px-2 py-1 text-xs font-bold transition ${meta.timeTaken === t.value ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-xs font-semibold text-primary">→ Will log as solved</span>
+                  </div>
+                )}
+
+                {isLogged && isSolved && (
+                  <p className="ml-1 text-xs font-semibold text-green-400">✓ Logged to your problems</p>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="rounded-full bg-secondary/60 px-2 py-1">Slot {idx + 1}</span>
+                  <span className="rounded-full bg-secondary/60 px-2 py-1">
+                    Solved by:{" "}
+                    <span className="text-foreground">
+                      {allSolved[slotKey] ? Array.from(allSolved[slotKey]!).map((id) => userNameById.get(id) ?? id).join(" · ") : "--"}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="glass-panel rounded-2xl p-5">
+        <h4 className="mb-4 text-xl font-bold">Today’s Score</h4>
+        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+          {users.map((u) => {
+            const count = [0, 1, 2, 3].filter((slot) => allSolved[String(slot)]?.has(u.id)).length;
+            const total = links.filter((l) => l.trim()).length;
+            return (
+              <div key={u.id} className={`flex items-center justify-between rounded-xl border p-4 transition ${u.id === currentAccountId ? "border-primary bg-primary/10" : "border-border bg-card/70"}`}>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{u.emoji}</span>
+                  <div>
+                    <p className="font-bold leading-tight">{u.name}</p>
+                    <p className="text-xs text-muted-foreground">@{u.username}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-black text-primary">{count}</p>
+                  <p className="text-xs text-muted-foreground">of {total}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="glass-panel rounded-2xl p-5">
+        <h4 className="mb-4 text-xl font-bold">Who solved what</h4>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead className="text-muted-foreground">
+              <tr>
+                <th className="py-3">Target</th>
+                {users.map((u) => (
+                  <th key={u.id} className="py-3">
+                    {u.emoji} {u.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {links.map((link, idx) => {
+                const key = link.trim();
+                return (
+                  <tr key={idx} className="border-t border-border">
+                    <td className="py-3 font-semibold">
+                      {key ? (
+                        <a href={key} target="_blank" rel="noreferrer" className="transition hover:text-primary">
+                          Target {idx + 1}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground">Empty</span>
+                      )}
+                    </td>
+                    {users.map((u) => {
+                      const solvedFlag = !!key && !!allSolved[String(idx)]?.has(u.id);
+                      return (
+                        <td key={u.id} className="py-3">
+                          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${solvedFlag ? "bg-green-500/20 text-green-300" : "bg-secondary/40 text-muted-foreground"}`}>
+                            {solvedFlag ? "Solved" : "--"}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-4 text-xs text-muted-foreground">
+          Note: "Solved" is <span className="font-semibold">manual</span>. Check boxes above then click <span className="font-semibold">Save My Progress</span> to log.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -424,6 +872,7 @@ function LogProblem({ currentAccountId, data, compact = false, onRefresh }: { cu
     timeTaken: "25", 
     notes: "" 
   });
+  const [linkBusy, setLinkBusy] = useState(false);
 
   // Dynamically calculate available platforms and topics from existing data
   const dynamicOptions = useMemo(() => {
@@ -442,9 +891,46 @@ function LogProblem({ currentAccountId, data, compact = false, onRefresh }: { cu
     };
   }, [data]);
 
+  const fetchFromLink = async (url: string) => {
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    setLinkBusy(true);
+    try {
+      const res = await fetch(`/api/problem-metadata?url=${encodeURIComponent(trimmed)}`);
+      if (!res.ok) {
+        throw new Error("Could not fetch problem details from link");
+      }
+      const meta = (await res.json()) as { name: string; platform: string; difficulty: string; topic: string };
+      setForm((f) => ({
+        ...f,
+        link: trimmed,
+        name: meta.name || f.name,
+        platform: meta.platform || f.platform,
+        // Set an initial difficulty from metadata; user can still override via tabs.
+        difficulty: (meta.difficulty as any) || f.difficulty,
+        topic: meta.topic || f.topic,
+        customPlatform: "",
+        customTopic: "",
+      }));
+    } catch (e) {
+      // If we can't parse, still allow manual logging (non-compact mode).
+      toast.error(e instanceof Error ? e.message : "Could not fetch problem details");
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+
   const submit = async (event: React.SyntheticEvent) => { 
     event.preventDefault(); 
-    if (!form.name.trim()) return; 
+    if (compact) {
+      if (!form.link.trim()) return;
+      if (!form.name.trim()) {
+        toast.error("Paste a supported link (e.g. GeeksforGeeks problem link)");
+        return;
+      }
+    } else {
+      if (!form.name.trim()) return;
+    }
 
     const finalPlatform = form.platform === "Custom..." ? form.customPlatform.trim() : form.platform;
     const finalTopic = form.topic === "Custom..." ? form.customTopic.trim() : form.topic;
@@ -495,6 +981,94 @@ function LogProblem({ currentAccountId, data, compact = false, onRefresh }: { cu
     await onRefresh?.(); 
   };
 
+  if (compact) {
+    const difficultyTabs = ["Easy", "Medium", "Hard"] as const;
+    const timeTabs = [
+      { label: "15m", value: "15" },
+      { label: "30m", value: "30" },
+      { label: "45m", value: "45" },
+      { label: "60m", value: "60" },
+    ] as const;
+    return (
+      <form onSubmit={submit} className="grid gap-3">
+        <div className="relative">
+          <input
+            required
+            value={form.link}
+            onChange={(e) => setForm((f) => ({ ...f, link: e.target.value }))}
+            onPaste={(e) => {
+              const pasted = e.clipboardData.getData("text");
+              // Let the input update first, then fetch.
+              queueMicrotask(() => fetchFromLink(pasted));
+            }}
+            onBlur={() => fetchFromLink(form.link)}
+            className="h-11 w-full rounded-lg border border-input bg-background/70 px-3 pr-12 outline-none focus:ring-2 focus:ring-primary/30"
+            placeholder="Paste problem link (e.g. GeeksforGeeks)"
+          />
+          {linkBusy && <Loader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
+        </div>
+
+        <div className="grid gap-2">
+          <div className="inline-flex w-fit rounded-lg border border-border bg-secondary/40 p-1">
+            {difficultyTabs.map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, difficulty: d }))}
+                className={`px-3 py-1.5 text-xs font-bold transition ${
+                  form.difficulty === d
+                    ? "rounded-md bg-primary text-primary-foreground shadow-glow"
+                    : "rounded-md text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+
+          <div className="inline-flex w-fit rounded-lg border border-border bg-secondary/40 p-1">
+            {timeTabs.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, timeTaken: t.value }))}
+                className={`px-3 py-1.5 text-xs font-bold transition ${
+                  form.timeTaken === t.value
+                    ? "rounded-md bg-accent text-accent-foreground"
+                    : "rounded-md text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="rounded-full bg-secondary/60 px-2 py-1 text-muted-foreground">
+            Difficulty: <span className="text-foreground">{form.difficulty}</span>
+          </span>
+          <span className="rounded-full bg-secondary/60 px-2 py-1 text-muted-foreground">
+            Time: <span className="text-foreground">{form.timeTaken}m</span>
+          </span>
+          <span className="rounded-full bg-secondary/60 px-2 py-1 text-muted-foreground">{form.platform || "Platform"}</span>
+          <span className="rounded-full bg-secondary/60 px-2 py-1 text-muted-foreground">{form.topic || "Topic"}</span>
+        </div>
+
+        {form.name && (
+          <div className="rounded-lg border border-border bg-card/60 px-3 py-2">
+            <div className="text-sm font-semibold">{form.name}</div>
+            <div className="text-xs text-muted-foreground truncate">{form.link}</div>
+          </div>
+        )}
+
+        <Button variant="rival" className="h-11" disabled={linkBusy}>
+          {linkBusy ? <Loader2 className="animate-spin" /> : <Plus />} Log Solved Problem
+        </Button>
+      </form>
+    );
+  }
+
   return (
     <form onSubmit={submit} className={`grid gap-3 ${compact ? "" : "glass-panel animate-enter rounded-2xl p-5 md:grid-cols-2"}`}>
       <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-11 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="Problem name" />
@@ -530,14 +1104,208 @@ function Select({ value, options, onChange }: { value: string; options: string[]
   return <select value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30">{options.map((option) => <option key={option}>{option}</option>)}</select>;
 }
 
-function RecentActivity({ problems, users }: { problems: Problem[]; users: MutualUser[] }) {
-  return <div className="glass-panel rounded-2xl p-5"><h3 className="mb-4 text-xl font-bold">Recent Activity</h3><div className="space-y-3">{problems.map((problem) => { const user = users.find((item) => item.id === problem.accountId); return <div key={problem.id} className="flex items-center justify-between rounded-lg bg-secondary/60 p-3"><div><p className="font-semibold">{user?.emoji ?? "🚀"} {problem.name}</p><p className="text-xs text-muted-foreground">{problem.platform} · {problem.topic} · {problem.difficulty}</p></div><span className="text-xs text-muted-foreground">{new Date(problem.solvedAt).toLocaleDateString()}</span></div>; })}</div></div>;
-}
-
 function Heatmap({ currentAccountId, problems }: { currentAccountId: string; problems: Problem[] }) {
-  const mine = problems.filter((problem) => problem.accountId === currentAccountId);
-  const cells = Array.from({ length: 49 }, (_, index) => { const date = new Date(); date.setDate(date.getDate() - (48 - index)); return mine.filter((problem) => new Date(problem.solvedAt).toDateString() === date.toDateString()).length; });
-  return <div className="glass-panel rounded-2xl p-5"><h3 className="mb-4 text-xl font-bold">Contribution Heatmap</h3><div className="grid grid-cols-7 gap-2">{cells.map((count, index) => <div key={index} title={`${count} solved`} className={`aspect-square rounded ${count === 0 ? "bg-muted" : count === 1 ? "bg-heat-1" : count === 2 ? "bg-heat-2" : count === 3 ? "bg-heat-3" : "bg-heat-4"}`} />)}</div></div>;
+  const mine = useMemo(
+    () => problems.filter((problem) => problem.accountId === currentAccountId),
+    [problems, currentAccountId],
+  );
+
+  const {
+    weeks,
+    monthLabels,
+    maxCount,
+  } = useMemo(() => {
+    const localDateKey = (date: Date) => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    };
+
+    const countsByDay = new Map<string, number>();
+    for (const p of mine) {
+      const key = localDateKey(new Date(p.solvedAt));
+      countsByDay.set(key, (countsByDay.get(key) ?? 0) + 1);
+    }
+
+    const today = new Date();
+    const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    // GitHub calendar weeks start on Sunday.
+    const start = new Date(end);
+    start.setDate(start.getDate() - 364);
+    start.setHours(0, 0, 0, 0);
+    while (start.getDay() !== 0) start.setDate(start.getDate() - 1);
+
+    const dates: Date[] = [];
+    const cursor = new Date(start);
+    while (cursor <= end) {
+      dates.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    while (dates.length % 7 !== 0) {
+      const last = dates[dates.length - 1]!;
+      const next = new Date(last);
+      next.setDate(next.getDate() + 1);
+      dates.push(next);
+    }
+
+    let computedMax = 0;
+    const all = dates.map((d) => {
+      const count = countsByDay.get(localDateKey(d)) ?? 0;
+      if (count > computedMax) computedMax = count;
+      return { date: d, count };
+    });
+
+    const computedWeeks: { days: { date: Date; count: number }[] }[] = [];
+    for (let i = 0; i < all.length; i += 7) {
+      computedWeeks.push({ days: all.slice(i, i + 7) });
+    }
+
+    const monthFormatter = new Intl.DateTimeFormat(undefined, { month: "short" });
+    const labels: { weekIndex: number; label: string }[] = [];
+    let lastMonth = -1;
+    computedWeeks.forEach((week, weekIndex) => {
+      const month = week.days[0]!.date.getMonth();
+      if (weekIndex === 0) {
+        lastMonth = month;
+        labels.push({ weekIndex, label: monthFormatter.format(week.days[0]!.date) });
+        return;
+      }
+      if (month !== lastMonth) {
+        lastMonth = month;
+        labels.push({ weekIndex, label: monthFormatter.format(week.days[0]!.date) });
+      }
+    });
+
+    return { weeks: computedWeeks, monthLabels: labels, maxCount: computedMax };
+  }, [mine]);
+
+  const [hovered, setHovered] = useState<{
+    date: Date;
+    count: number;
+    anchor: { x: number; y: number };
+  } | null>(null);
+
+  const dayFormatter = useMemo(
+    () => new Intl.DateTimeFormat(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" }),
+    [],
+  );
+
+  const levelFor = (count: number) => {
+    if (count <= 0) return 0;
+    if (maxCount <= 1) return 1;
+    const scaled = Math.ceil((count / maxCount) * 4);
+    return Math.max(1, Math.min(4, scaled));
+  };
+
+  const weekdayLabels = [
+    { row: 1, label: "Mon" },
+    { row: 3, label: "Wed" },
+    { row: 5, label: "Fri" },
+  ];
+
+  return (
+    <div className="glass-panel rounded-2xl p-5">
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h3 className="text-xl font-bold">Contribution Heatmap</h3>
+        <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+          <span>Less</span>
+          <span className="gh-heat-square gh-heat-0" aria-hidden />
+          <span className="gh-heat-square gh-heat-1" aria-hidden />
+          <span className="gh-heat-square gh-heat-2" aria-hidden />
+          <span className="gh-heat-square gh-heat-3" aria-hidden />
+          <span className="gh-heat-square gh-heat-4" aria-hidden />
+          <span>More</span>
+        </div>
+      </div>
+
+      <div className="relative overflow-x-auto">
+        <div className="inline-block">
+          <div className="gh-heatmap-months">
+            {monthLabels.map((m) => (
+              <div key={`${m.weekIndex}-${m.label}`} className="gh-heatmap-month" style={{ gridColumnStart: m.weekIndex + 2 }}>
+                {m.label}
+              </div>
+            ))}
+          </div>
+
+          <div className="gh-heatmap-body">
+            <div className="gh-heatmap-ylabels">
+              {weekdayLabels.map((w) => (
+                <div key={w.label} className="gh-heatmap-ylabel" style={{ gridRowStart: w.row + 1 }}>
+                  {w.label}
+                </div>
+              ))}
+            </div>
+
+            <div className="gh-heatmap-weeks" role="grid" aria-label="Contribution calendar">
+              {weeks.map((week, weekIndex) => (
+                <div key={weekIndex} className="gh-heatmap-week" role="row">
+                  {week.days.map((d, dayIndex) => {
+                    const level = levelFor(d.count);
+                    const label = `${d.count} solved on ${dayFormatter.format(d.date)}`;
+                    return (
+                      <button
+                        key={dayIndex}
+                        type="button"
+                        className={`gh-heat-square gh-heat-${level}`}
+                        aria-label={label}
+                        onMouseEnter={(e) => {
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          const parent = (e.currentTarget.offsetParent as HTMLElement | null)?.getBoundingClientRect();
+                          setHovered({
+                            date: d.date,
+                            count: d.count,
+                            anchor: {
+                              x: rect.left - (parent?.left ?? 0) + rect.width / 2,
+                              y: rect.top - (parent?.top ?? 0),
+                            },
+                          });
+                        }}
+                        onMouseLeave={() => setHovered(null)}
+                        onFocus={(e) => {
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          const parent = (e.currentTarget.offsetParent as HTMLElement | null)?.getBoundingClientRect();
+                          setHovered({
+                            date: d.date,
+                            count: d.count,
+                            anchor: {
+                              x: rect.left - (parent?.left ?? 0) + rect.width / 2,
+                              y: rect.top - (parent?.top ?? 0),
+                            },
+                          });
+                        }}
+                        onBlur={() => setHovered(null)}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {hovered && (
+          <div
+            className="gh-heatmap-tooltip"
+            style={{
+              left: hovered.anchor.x,
+              top: hovered.anchor.y,
+              transform: "translate(-50%, calc(-100% - 10px))",
+            }}
+            role="status"
+          >
+            <div className="gh-heatmap-tooltip-inner">
+              <div className="text-sm font-semibold">{hovered.count} solved</div>
+              <div className="text-xs opacity-80">{dayFormatter.format(hovered.date)}</div>
+            </div>
+            <div className="gh-heatmap-tooltip-caret" aria-hidden />
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function Leaderboard({ users, problems }: { users: MutualUser[]; problems: Problem[] }) {
@@ -552,22 +1320,8 @@ function MyProblems({ currentAccountId, problems }: { currentAccountId: string; 
   return <section className="glass-panel animate-enter rounded-2xl p-5"><div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row"><h3 className="text-2xl font-black">My Problems</h3><label className="flex items-center gap-2 rounded-lg border border-input bg-background/70 px-3"><Search className="size-4 text-muted-foreground" /><input value={filter} onChange={(e) => setFilter(e.target.value)} className="h-10 bg-transparent outline-none" placeholder="Filter platform, topic..." /></label></div><ProblemTable problems={filtered} /></section>;
 }
 
-function FriendProblems({ currentAccountId, users, problems }: { currentAccountId: string; users: MutualUser[]; problems: Problem[] }) {
-  const friendId = getFriendId(currentAccountId, users);
-  const friend = users.find((item) => item.id === friendId) ?? users.find((item) => item.id === currentAccountId)!;
-  const solvedByMe = new Set(problems.filter((problem) => problem.accountId === currentAccountId).map((problem) => problem.name.toLowerCase()));
-  const friendProblems = problems.filter((problem) => problem.accountId === friendId);
-  const [filter, setFilter] = useState("");
-  const filtered = friendProblems.filter((problem) => `${problem.platform} ${problem.difficulty} ${problem.topic} ${problem.name}`.toLowerCase().includes(filter.toLowerCase()));
-  return <section className="glass-panel animate-enter rounded-2xl p-5"><div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row"><div><h3 className="text-2xl font-black">{friend.name}'s Solved Problems</h3><p className="mt-1 text-sm text-muted-foreground">See what your mutual solved and choose your next target.</p></div><label className="flex items-center gap-2 rounded-lg border border-input bg-background/70 px-3"><Search className="size-4 text-muted-foreground" /><input value={filter} onChange={(e) => setFilter(e.target.value)} className="h-10 bg-transparent outline-none" placeholder="Filter squad problems..." /></label></div><div className="grid gap-3">{filtered.length === 0 && <p className="text-sm text-muted-foreground">No squad problems yet. Invite your squad to sign up and log problems.</p>}{filtered.map((problem) => { const alreadySolved = solvedByMe.has(problem.name.toLowerCase()); return <div key={problem.id} className="rounded-xl border border-border bg-card/80 p-4"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><p className="text-lg font-bold">{problem.name}</p><p className="mt-1 text-sm text-muted-foreground">{problem.platform} · {problem.topic} · {problem.difficulty} · {problem.timeTaken}m</p></div><div className="flex items-center gap-2"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${alreadySolved ? "bg-primary/15 text-primary" : "bg-accent/15 text-accent"}`}>{alreadySolved ? "You solved it" : "Try this next"}</span>{problem.link && <a href={problem.link} target="_blank" rel="noreferrer" className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-secondary text-foreground transition hover:bg-accent hover:text-accent-foreground" aria-label={`Open ${problem.name}`}><ExternalLink className="size-4" /></a>}</div></div><p className="mt-3 text-xs text-muted-foreground">Solved on {new Date(problem.solvedAt).toLocaleDateString()}</p></div>; })}</div></section>;
-}
-
 function ProblemTable({ problems }: { problems: Problem[] }) {
   return <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="text-muted-foreground"><tr><th className="py-3">Problem</th><th>Platform</th><th>Difficulty</th><th>Topic</th><th>Time</th><th>Date</th></tr></thead><tbody>{problems.map((problem) => <tr key={problem.id} className="border-t border-border"><td className="py-3 font-semibold">{problem.link ? <a className="transition hover:text-primary" href={problem.link} target="_blank" rel="noreferrer">{problem.name}</a> : problem.name}</td><td>{problem.platform}</td><td>{problem.difficulty}</td><td>{problem.topic}</td><td>{problem.timeTaken}m</td><td>{new Date(problem.solvedAt).toLocaleDateString()}</td></tr>)}</tbody></table></div>;
-}
-
-function Challenges({ challenges, users, problems }: { challenges: Challenge[]; users: MutualUser[]; problems: Problem[] }) {
-  return <section className="animate-enter grid gap-4 lg:grid-cols-3">{challenges.map((challenge) => <div key={challenge.id} className="glass-panel rounded-2xl p-5"><Target className="mb-4 size-6 text-accent" /><h3 className="text-xl font-black">{challenge.title}</h3><p className="mb-4 text-sm text-muted-foreground">{challenge.topic} · Reward {challenge.reward}</p>{users.map((user) => { const count = problems.filter((problem) => problem.accountId === user.id && (problem.topic === challenge.topic || (challenge.topic === 'Easy' && problem.difficulty === 'Easy'))).length; return <div key={user.id} className="mb-3"><div className="mb-1 flex justify-between text-sm"><span>{user.emoji} {user.name}</span><span>{count}/{challenge.target}</span></div><div className="h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-primary" style={{ width: `${Math.min(100, (count / challenge.target) * 100)}%` }} /></div></div>; })}</div>)}</section>;
 }
 
 function HallOfFame({ users, problems }: { users: MutualUser[]; problems: Problem[] }) {
@@ -672,80 +1426,169 @@ function WeeklyPledge({ currentAccountId, stats }: { currentAccountId: string; s
 
 function Analytics({ currentAccountId, users, problems }: { currentAccountId: string; users: MutualUser[]; problems: Problem[] }) {
   const friendId = getFriendId(currentAccountId, users);
-  const mine = problems.filter((problem) => problem.accountId === currentAccountId);
-  const friend = problems.filter((problem) => problem.accountId === friendId);
-  
-  const byTopic = useMemo(() => {
-    const allTopics = Array.from(new Set(problems.map(p => p.topic))).filter(Boolean).sort();
-    const topicsToShow = allTopics.length > 0 ? allTopics : topics.filter(t => t !== "Custom...").slice(0, 6);
-    return topicsToShow.map((topic) => ({ 
-      topic, 
-      mine: mine.filter((p) => p.topic === topic).length, 
-      friend: friend.filter((p) => p.topic === topic).length 
-    }));
-  }, [mine, friend, problems]);
+  const mine = useMemo(() => problems.filter((problem) => problem.accountId === currentAccountId), [problems, currentAccountId]);
+  const friend = useMemo(() => problems.filter((problem) => problem.accountId === friendId), [problems, friendId]);
 
-  const byPlatform = useMemo(() => {
-    const allPlatforms = Array.from(new Set(problems.map(p => p.platform))).filter(Boolean).sort();
-    const platformsToShow = allPlatforms.length > 0 ? allPlatforms : platforms.filter(p => p !== "Custom...").slice(0, 4);
-    return platformsToShow.map((platform) => ({ 
-      platform, 
-      mine: mine.filter((p) => p.platform === platform).length, 
-      friend: friend.filter((p) => p.platform === platform).length 
-    }));
-  }, [mine, friend, problems]);
+  const { weeklyBars, monthlyBars, mineAvg, friendAvg, pie } = useMemo(() => {
+    const startOfLocalDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const dayKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+    const mineCountsByDay = new Map<string, number>();
+    for (const p of mine) {
+      const key = dayKey(startOfLocalDay(new Date(p.solvedAt)));
+      mineCountsByDay.set(key, (mineCountsByDay.get(key) ?? 0) + 1);
+    }
+    const friendCountsByDay = new Map<string, number>();
+    for (const p of friend) {
+      const key = dayKey(startOfLocalDay(new Date(p.solvedAt)));
+      friendCountsByDay.set(key, (friendCountsByDay.get(key) ?? 0) + 1);
+    }
+
+    const today = startOfLocalDay(new Date());
+
+    // Weekly: last 7 days (including today)
+    const weekdayFmt = new Intl.DateTimeFormat(undefined, { weekday: "short" });
+    const weekly = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() - (6 - i));
+      const mineSolved = mineCountsByDay.get(dayKey(d)) ?? 0;
+      const friendSolved = friendCountsByDay.get(dayKey(d)) ?? 0;
+      return { label: weekdayFmt.format(d), mine: mineSolved, friend: friendSolved };
+    });
+
+    // Monthly: last 6 months
+    const monthFmt = new Intl.DateTimeFormat(undefined, { month: "short" });
+    const monthMine = new Map<string, number>();
+    const monthFriend = new Map<string, number>();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      monthMine.set(key, 0);
+      monthFriend.set(key, 0);
+    }
+    for (const p of mine) {
+      const d = new Date(p.solvedAt);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      if (monthMine.has(key)) monthMine.set(key, (monthMine.get(key) ?? 0) + 1);
+    }
+    for (const p of friend) {
+      const d = new Date(p.solvedAt);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      if (monthFriend.has(key)) monthFriend.set(key, (monthFriend.get(key) ?? 0) + 1);
+    }
+    const monthly = Array.from(monthMine.keys()).map((key) => {
+      const [y, m] = key.split("-").map(Number);
+      return {
+        label: monthFmt.format(new Date(y!, m!, 1)),
+        mine: monthMine.get(key) ?? 0,
+        friend: monthFriend.get(key) ?? 0,
+      };
+    });
+
+    // Daily average: last 30 days
+    let last30Total = 0;
+    let last30FriendTotal = 0;
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const key = dayKey(d);
+      last30Total += mineCountsByDay.get(key) ?? 0;
+      last30FriendTotal += friendCountsByDay.get(key) ?? 0;
+    }
+    const avg = last30Total / 30;
+    const avgFriend = last30FriendTotal / 30;
+
+    return {
+      weeklyBars: weekly,
+      monthlyBars: monthly,
+      mineAvg: avg,
+      friendAvg: avgFriend,
+      pie: [
+        { name: "You", value: Number(avg.toFixed(3)) },
+        { name: "Rival", value: Number(avgFriend.toFixed(3)) },
+      ],
+    };
+  }, [mine, friend]);
 
   return (
     <section className="animate-enter space-y-6">
-      <div className="glass-panel rounded-2xl p-5">
-        <h3 className="mb-5 text-2xl font-black">Analytics by Topic</h3>
-        <div className="space-y-4">
-          {byTopic.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No problems logged yet to show topic analytics.</p>
-          ) : (
-            byTopic.map((row) => (
-              <div key={row.topic} className="grid items-center gap-3 sm:grid-cols-[140px_1fr_48px]">
-                <span className="font-semibold truncate" title={row.topic}>{row.topic}</span>
-                <div className="space-y-2">
-                  <div className="h-3 rounded-full bg-muted">
-                    <div className="h-3 rounded-full bg-primary transition-all duration-500" style={{ width: `${Math.min(100, row.mine * 18)}%` }} />
-                  </div>
-                  <div className="h-3 rounded-full bg-muted">
-                    <div className="h-3 rounded-full bg-accent transition-all duration-500" style={{ width: `${Math.min(100, row.friend * 18)}%` }} />
-                  </div>
-                </div>
-                <span className="text-sm text-muted-foreground">{row.mine}/{row.friend}</span>
-              </div>
-            ))
-          )}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="glass-panel rounded-2xl p-5 lg:col-span-2">
+          <h3 className="mb-3 text-2xl font-black">Monthly Progress</h3>
+          <p className="mb-4 text-sm text-muted-foreground">Problems solved per month (last 6 months).</p>
+          <ChartContainer
+            className="h-[260px] w-full"
+            config={{
+              mine: { label: "You", color: "var(--color-primary)" },
+              friend: { label: "Rival", color: "var(--color-accent)" },
+            }}
+          >
+            <BarChart data={monthlyBars} margin={{ left: 8, right: 8, top: 10, bottom: 0 }}>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} />
+              <YAxis tickLine={false} axisLine={false} width={28} allowDecimals={false} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="mine" fill="var(--color-mine)" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="friend" fill="var(--color-friend)" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ChartContainer>
+        </div>
+
+        <div className="glass-panel rounded-2xl p-5">
+          <h3 className="mb-3 text-2xl font-black">Daily Avg</h3>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Last 30 days avg/day: <span className="font-bold text-foreground">{mineAvg.toFixed(2)}</span> vs{" "}
+            <span className="font-bold text-foreground">{friendAvg.toFixed(2)}</span>.
+          </p>
+          <ChartContainer
+            className="h-[260px] w-full"
+            config={{
+              you: { label: "You", color: "var(--color-primary)" },
+              rival: { label: "Rival", color: "var(--color-accent)" },
+            }}
+          >
+            <PieChart>
+              <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+              <Pie
+                data={[
+                  { name: "You", value: pie[0]!.value, fill: "var(--color-you)" },
+                  { name: "Rival", value: pie[1]!.value, fill: "var(--color-rival)" },
+                ]}
+                dataKey="value"
+                nameKey="name"
+                innerRadius={58}
+                outerRadius={92}
+                stroke="transparent"
+              >
+                <Cell fill="var(--color-you)" />
+                <Cell fill="var(--color-rival)" />
+              </Pie>
+            </PieChart>
+          </ChartContainer>
         </div>
       </div>
 
       <div className="glass-panel rounded-2xl p-5">
-        <h3 className="mb-5 text-2xl font-black">Analytics by Platform</h3>
-        <div className="space-y-4">
-          {byPlatform.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No problems logged yet to show platform analytics.</p>
-          ) : (
-            byPlatform.map((row) => (
-              <div key={row.platform} className="grid items-center gap-3 sm:grid-cols-[140px_1fr_48px]">
-                <span className="font-semibold truncate" title={row.platform}>{row.platform}</span>
-                <div className="space-y-2">
-                  <div className="h-3 rounded-full bg-muted">
-                    <div className="h-3 rounded-full bg-primary transition-all duration-500" style={{ width: `${Math.min(100, row.mine * 18)}%` }} />
-                  </div>
-                  <div className="h-3 rounded-full bg-muted">
-                    <div className="h-3 rounded-full bg-accent transition-all duration-500" style={{ width: `${Math.min(100, row.friend * 18)}%` }} />
-                  </div>
-                </div>
-                <span className="text-sm text-muted-foreground">{row.mine}/{row.friend}</span>
-              </div>
-            ))
-          )}
-        </div>
+        <h3 className="mb-3 text-2xl font-black">Weekly Progress</h3>
+        <p className="mb-4 text-sm text-muted-foreground">Problems solved per day (last 7 days).</p>
+        <ChartContainer
+          className="h-[240px] w-full"
+          config={{
+            mine: { label: "You", color: "var(--color-primary)" },
+            friend: { label: "Rival", color: "var(--color-accent)" },
+          }}
+        >
+          <BarChart data={weeklyBars} margin={{ left: 8, right: 8, top: 10, bottom: 0 }}>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} />
+            <YAxis tickLine={false} axisLine={false} width={28} allowDecimals={false} />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <Bar dataKey="mine" fill="var(--color-mine)" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="friend" fill="var(--color-friend)" radius={[8, 8, 0, 0]} />
+          </BarChart>
+        </ChartContainer>
       </div>
-      
-      <p className="mt-5 text-sm text-muted-foreground"><span className="text-primary font-bold">Primary</span> is you, <span className="text-accent font-bold">Accent</span> is your friend.</p>
     </section>
   );
 }

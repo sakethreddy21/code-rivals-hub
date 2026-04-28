@@ -9,7 +9,7 @@ export type Profile = {
   display_name: string;
   emoji: string;
   title: string;
-  mutual_user_id: string | null;
+  rival_user_id: string | null;
   created_at: string;
 };
 
