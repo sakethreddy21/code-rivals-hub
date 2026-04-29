@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Swords,
   Target,
+  Trash2,
   Trophy,
   User,
   UserPlus,
@@ -397,7 +398,7 @@ function Dashboard({ currentAccountId, data, users, onRefresh }: { currentAccoun
         <StatCard label="Weekly Progress" value={mine.week} Icon={Activity} />
       </div>
       
-      <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_0.7fr]">
         <div className="space-y-6">
           <div className="glass-panel rounded-2xl p-5">
             <h3 className="mb-4 text-xl font-bold">Friend Comparison</h3>
@@ -408,9 +409,12 @@ function Dashboard({ currentAccountId, data, users, onRefresh }: { currentAccoun
           </div>
           <WeeklyPledge currentAccountId={currentAccountId} stats={mine} />
         </div>
-        <div className="glass-panel rounded-2xl p-5">
-          <h3 className="mb-4 text-xl font-bold">Quick Log Solved Problem</h3>
-          <LogProblem currentAccountId={currentAccountId} data={data} compact onRefresh={onRefresh} />
+        <div className="space-y-6">
+          <SquadActivity data={data} users={users} />
+          <div className="glass-panel rounded-2xl p-5">
+            <h3 className="mb-4 text-xl font-bold">Quick Log Problem</h3>
+            <LogProblem currentAccountId={currentAccountId} data={data} compact onRefresh={onRefresh} />
+          </div>
         </div>
       </div>
       <div className="grid gap-6">
@@ -431,13 +435,45 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
     return `${y}-${m}-${day}`;
   }, []);
 
-  const [links, setLinks] = useState<string[]>(["", "", "", ""]);
+  const [links, setLinks] = useState<string[]>([""]);
   const [busy, setBusy] = useState(false);
   const [solvedDraft, setSolvedDraft] = useState<Record<string, boolean>>({});
   const [solvedMeta, setSolvedMeta] = useState<Record<string, { difficulty: string; timeTaken: string }>>({});
   const [alreadyLogged, setAlreadyLogged] = useState<Record<string, boolean>>({});
   const [saveProgressBusy, setSaveProgressBusy] = useState(false);
+  const [fetchedTitles, setFetchedTitles] = useState<Record<string, { name: string; platform: string; difficulty: string }>>({});
+  const [presence, setPresence] = useState<Record<string, any>>({});
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const userNameById = useMemo(() => new Map(users.map((u) => [u.id, `${u.emoji} ${u.name}`])), [users]);
+
+  const fetchTitle = async (url: string, slot: number) => {
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    try {
+      const res = await fetch(`/api/problem-metadata?url=${encodeURIComponent(trimmed)}`);
+      if (res.ok) {
+        const meta = await res.json();
+        setFetchedTitles(prev => ({ ...prev, [String(slot)]: meta }));
+        // If no difficulty set for this slot yet, auto-set it from meta
+        if (!solvedMeta[String(slot)]) {
+          setSolvedMeta(prev => ({ 
+            ...prev, 
+            [String(slot)]: { difficulty: meta.difficulty || "Medium", timeTaken: "25" } 
+          }));
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch title", e);
+    }
+  };
+
+  useEffect(() => {
+    links.forEach((link, idx) => {
+      if (link.trim() && !fetchedTitles[String(idx)]) {
+        fetchTitle(link, idx);
+      }
+    });
+  }, [links]);
 
   useEffect(() => {
     let mounted = true;
@@ -452,7 +488,8 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
 
       if (!error && (row as any)?.links) {
         const arr = Array.isArray((row as any).links) ? ((row as any).links as string[]) : [];
-        setLinks([arr[0] ?? "", arr[1] ?? "", arr[2] ?? "", arr[3] ?? ""]);
+        setLinks(arr.length > 0 ? arr : [""]);
+        setTimeout(() => setIsInitialLoad(false), 500);
         return;
       }
 
@@ -460,13 +497,22 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
       if (local) {
         try {
           const arr = JSON.parse(local) as string[];
-          if (Array.isArray(arr)) setLinks([arr[0] ?? "", arr[1] ?? "", arr[2] ?? "", arr[3] ?? ""]);
+          if (Array.isArray(arr)) setLinks(arr.length > 0 ? arr : [""]);
         } catch {}
       }
+      setTimeout(() => setIsInitialLoad(false), 500);
     };
     load();
     return () => { mounted = false; };
   }, [dayKey]);
+
+  useEffect(() => {
+    if (isInitialLoad) return;
+    const timer = setTimeout(() => {
+      save();
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [links]);
 
   useEffect(() => {
     let mounted = true;
@@ -532,7 +578,7 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
   };
 
   const save = async () => {
-    const cleaned = links.map((l) => l.trim()).slice(0, 4);
+    const cleaned = links.map((l) => l.trim());
     setBusy(true);
     try {
       const { error } = await (supabase as any)
@@ -552,7 +598,7 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
 
   const saveProgress = async () => {
     const cleaned: Record<string, boolean> = {};
-    for (let slot = 0; slot < 4; slot++) {
+    for (let slot = 0; slot < links.length; slot++) {
       cleaned[String(slot)] = !!solvedDraft[String(slot)];
     }
 
@@ -564,7 +610,7 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
       const localKey = `today_target_solved_${dayKey}_${currentAccountId}`;
       localStorage.setItem(localKey, JSON.stringify(cleaned));
 
-      for (let slot = 0; slot < 4; slot++) {
+      for (let slot = 0; slot < links.length; slot++) {
         const slotKey = String(slot);
         const link = links[slot]?.trim();
         if (cleaned[slotKey] && link && !alreadyLogged[slotKey]) {
@@ -590,7 +636,7 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
       localStorage.setItem(loggedKey, JSON.stringify(newAlreadyLogged));
       setAlreadyLogged(newAlreadyLogged);
 
-      const rows = Array.from({ length: 4 }, (_, slot) => ({
+      const rows = links.map((_, slot) => ({
         day: dayKey,
         slot,
         account_id: currentAccountId,
@@ -611,6 +657,33 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
       }
 
       await onRefresh?.();
+
+      // Squad Goals Celebration Check
+      const totalTargets = links.filter(l => l.trim()).length;
+      if (totalTargets > 0) {
+        const everyoneSolvedAll = users.every(u => {
+          const solvedCount = links.filter((link, slot) => {
+            if (!link.trim()) return false;
+            return u.id === currentAccountId 
+              ? !!cleaned[String(slot)] 
+              : !!allSolved[String(slot)]?.has(u.id);
+          }).length;
+          return solvedCount === totalTargets;
+        });
+
+        if (everyoneSolvedAll) {
+          confetti({
+            particleCount: 200,
+            spread: 100,
+            origin: { y: 0.6 },
+            colors: ["#6366f1", "#a855f7", "#ec4899", "#22c55e"]
+          });
+          toast.success("SQUAD GOALS ACHIEVED! 🏆", {
+            description: "Everyone has completed all targets for today. Absolute cinema.",
+            duration: 6000
+          });
+        }
+      }
     } finally {
       setSaveProgressBusy(false);
     }
@@ -639,25 +712,86 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
       }
     };
     loadAll();
-    const interval = setInterval(loadAll, 4000);
-    return () => { mounted = false; clearInterval(interval); };
-  }, [dayKey]);
+    
+    // Subscribe to real-time changes & Presence
+    const channel = supabase
+      .channel(`today_arena_${dayKey}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'today_target_solutions',
+          filter: `day=eq.${dayKey}`
+        },
+        () => {
+          loadAll();
+          onRefresh?.();
+        }
+      )
+      .on('presence', { event: 'sync' }, () => {
+        setPresence(channel.presenceState());
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ 
+            id: currentAccountId, 
+            online_at: new Date().toISOString(),
+            name: users.find(u => u.id === currentAccountId)?.name
+          });
+        }
+      });
+
+    return () => { 
+      mounted = false; 
+      supabase.removeChannel(channel);
+    };
+  }, [dayKey, currentAccountId, users]);
 
   const difficultyTabs = ["Easy", "Medium", "Hard"] as const;
   const timeTabs = [{ label: "15m", value: "15" }, { label: "30m", value: "30" }, { label: "45m", value: "45" }, { label: "60m", value: "60" }] as const;
 
+  const activePresenceCount = Object.keys(presence).length;
+  const totalSlotsWithLinks = links.filter(l => l.trim()).length;
+  const totalPossibleSolves = totalSlotsWithLinks * users.length;
+  const currentTotalSolves = Object.values(allSolved).reduce((acc, set) => acc + (set?.size || 0), 0);
+  const squadProgress = totalPossibleSolves > 0 ? Math.round((currentTotalSolves / totalPossibleSolves) * 100) : 0;
+
   return (
     <div className="space-y-6">
+      {totalSlotsWithLinks > 0 && (
+        <div className="glass-panel overflow-hidden rounded-2xl p-1">
+          <div className="flex items-center justify-between px-4 py-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-2 w-2 animate-pulse rounded-full bg-green-500" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Squad Progress</span>
+            </div>
+            <span className="text-[10px] font-black text-primary">{squadProgress}% COMPLETE</span>
+          </div>
+          <div className="h-1.5 w-full bg-secondary/30">
+            <div 
+              className="h-full bg-gradient-to-r from-primary via-accent to-primary shadow-glow transition-all duration-1000 ease-out" 
+              style={{ width: `${squadProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="glass-panel rounded-2xl p-5">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div>
-            <h3 className="text-2xl font-black">Today Target</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Shared notice board. Check what you solved -- it gets logged to your profile.</p>
+            <div className="flex items-center gap-2">
+              <h3 className="text-2xl font-black">Today Target</h3>
+              {activePresenceCount > 1 && (
+                <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary">
+                  <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary" />
+                  {activePresenceCount} IN ARENA
+                </div>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">Shared notice board. Changes are auto-saved. Mark solved to log progress.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button variant="secondary" onClick={save} disabled={busy}>
-              {busy ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Save Targets
-            </Button>
             <Button variant="rival" onClick={saveProgress} disabled={saveProgressBusy}>
               {saveProgressBusy ? <Loader2 className="animate-spin" /> : <Zap />} Save My Progress
             </Button>
@@ -673,28 +807,60 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
 
             return (
               <div key={idx} className="grid gap-2">
-                <div className="relative">
-                  <input
-                    value={link}
-                    onChange={(e) => {
-                      const next = [...links];
-                      next[idx] = e.target.value;
-                      setLinks(next);
-                    }}
-                    className="h-11 w-full rounded-lg border border-input bg-background/70 px-3 pr-28 outline-none focus:ring-2 focus:ring-primary/30"
-                    placeholder={`Target ${idx + 1} link`}
-                  />
-                  <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-2">
-                    <label className={`inline-flex h-8 cursor-pointer select-none items-center gap-2 rounded-md border px-3 text-xs font-black transition ${isLogged && isSolved ? "border-green-500/50 bg-green-500/10 text-green-400" : "border-border bg-secondary/50"} ${!link.trim() ? "opacity-40" : ""}`}>
-                      <input
-                        type="checkbox"
-                        className="accent-primary"
-                        disabled={!link.trim()}
-                        checked={isSolved}
-                        onChange={(e) => setSolvedDraft((s) => ({ ...s, [slotKey]: e.target.checked }))}
-                      />
-                      {isLogged && isSolved ? "Logged" : "Solved"}
-                    </label>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="relative flex-1">
+                    <input
+                      value={link}
+                      onChange={(e) => {
+                        const next = [...links];
+                        next[idx] = e.target.value;
+                        setLinks(next);
+                      }}
+                      onBlur={() => link.trim() && fetchTitle(link, idx)}
+                      className="h-11 w-full rounded-lg border border-input bg-background/70 px-3 pr-28 outline-none focus:ring-2 focus:ring-primary/30"
+                      placeholder={`Target ${idx + 1} link`}
+                    />
+                    {fetchedTitles[slotKey] && link.trim() && (
+                      <div className="mt-1.5 flex items-center gap-2 px-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                          {fetchedTitles[slotKey].platform}
+                        </span>
+                        <span className="text-xs font-bold truncate max-w-[200px]">
+                          {fetchedTitles[slotKey].name}
+                        </span>
+                      </div>
+                    )}
+                    <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                      <label className={`inline-flex h-8 cursor-pointer select-none items-center gap-2 rounded-md border px-3 text-xs font-black transition ${isLogged && isSolved ? "border-green-500/50 bg-green-500/10 text-green-400" : "border-border bg-secondary/50"} ${!link.trim() ? "opacity-40" : ""}`}>
+                        <input
+                          type="checkbox"
+                          className="accent-primary"
+                          disabled={!link.trim()}
+                          checked={isSolved}
+                          onChange={(e) => setSolvedDraft((s) => ({ ...s, [slotKey]: e.target.checked }))}
+                        />
+                        {isLogged && isSolved ? "Logged" : "Solved"}
+                      </label>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    {link.trim() && (
+                      <Button variant="outline" size="sm" className="h-11 shrink-0 gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10" asChild>
+                        <a href={link.startsWith('http') ? link : `https://${link}`} target="_blank" rel="noreferrer">
+                          <ExternalLink className="size-4" /> See the problem
+                        </a>
+                      </Button>
+                    )}
+                    {links.length > 1 && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-11 w-11 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setLinks(links.filter((_, i) => i !== idx))}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
 
@@ -746,6 +912,13 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
               </div>
             );
           })}
+          <Button 
+            variant="outline" 
+            className="w-full border-dashed py-8 text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all"
+            onClick={() => setLinks([...links, ""])}
+          >
+            <Plus className="mr-2 size-5" /> Add another target problem
+          </Button>
         </div>
       </div>
 
@@ -753,10 +926,16 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
         <h4 className="mb-4 text-xl font-bold">Today’s Score</h4>
         <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
           {users.map((u) => {
-            const count = [0, 1, 2, 3].filter((slot) => allSolved[String(slot)]?.has(u.id)).length;
+            const count = links.filter((_, slot) => allSolved[String(slot)]?.has(u.id)).length;
             const total = links.filter((l) => l.trim()).length;
+            const isOnline = Object.values(presence).some(p => (p as any)[0]?.id === u.id);
             return (
-              <div key={u.id} className={`flex items-center justify-between rounded-xl border p-4 transition ${u.id === currentAccountId ? "border-primary bg-primary/10" : "border-border bg-card/70"}`}>
+              <div key={u.id} className={`relative flex items-center justify-between rounded-xl border p-4 transition ${u.id === currentAccountId ? "border-primary bg-primary/10" : "border-border bg-card/70"}`}>
+                {isOnline && (
+                  <div className="absolute -right-1 -top-1 flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[8px] font-black text-accent-foreground shadow-glow">
+                    <Flame className="size-2 animate-pulse" /> COOKING
+                  </div>
+                )}
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{u.emoji}</span>
                   <div>
@@ -794,13 +973,17 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
                 return (
                   <tr key={idx} className="border-t border-border">
                     <td className="py-3 font-semibold">
-                      {key ? (
-                        <a href={key} target="_blank" rel="noreferrer" className="transition hover:text-primary">
-                          Target {idx + 1}
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground">Empty</span>
-                      )}
+                      <div className="flex items-center gap-3">
+                        <span>Target {idx + 1}</span>
+                        {key && (
+                          <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[10px] text-primary hover:text-primary hover:bg-primary/10" asChild>
+                            <a href={key.startsWith('http') ? key : `https://${key}`} target="_blank" rel="noreferrer">
+                              <ExternalLink className="size-3" /> See the problem
+                            </a>
+                          </Button>
+                        )}
+                        {!key && <span className="text-xs font-normal text-muted-foreground">(Empty)</span>}
+                      </div>
                     </td>
                     {users.map((u) => {
                       const solvedFlag = !!key && !!allSolved[String(idx)]?.has(u.id);
@@ -821,6 +1004,45 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
         <p className="mt-4 text-xs text-muted-foreground">
           Note: "Solved" is <span className="font-semibold">manual</span>. Check boxes above then click <span className="font-semibold">Save My Progress</span> to log.
         </p>
+      </div>
+    </div>
+  );
+}
+
+function SquadActivity({ data, users }: { data: AppData; users: MutualUser[] }) {
+  const recentProblems = useMemo(() => {
+    return [...data.problems]
+      .sort((a, b) => new Date(b.solvedAt).getTime() - new Date(a.solvedAt).getTime())
+      .slice(0, 5);
+  }, [data.problems]);
+
+  return (
+    <div className="glass-panel rounded-2xl p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-xl font-bold">Squad Activity</h3>
+        <Activity className="size-4 text-primary" />
+      </div>
+      <div className="space-y-4">
+        {recentProblems.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">No activity yet. Go cook! 🔥</p>
+        ) : (
+          recentProblems.map((p, i) => {
+            const user = users.find(u => u.id === p.accountId);
+            return (
+              <div key={i} className="flex items-center gap-3 border-b border-border/50 pb-3 last:border-0 last:pb-0">
+                <div className="text-2xl">{user?.emoji || "👤"}</div>
+                <div className="flex-1 overflow-hidden">
+                  <p className="text-sm font-bold truncate">
+                    <span className="text-primary">{user?.name || "Someone"}</span> solved {p.name}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground capitalize">
+                    {p.platform} · {new Date(p.solvedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
