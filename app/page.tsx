@@ -487,8 +487,23 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
           <div className="glass-panel rounded-2xl p-5">
             <h3 className="mb-4 text-xl font-bold">Friend Comparison</h3>
             <div className="grid gap-4 sm:grid-cols-2">
-              <MutualCard user={user} stats={mine} highlight />
-              <MutualCard user={friend} stats={rival} />
+              <MutualCard 
+                user={user} 
+                stats={mine} 
+                platformTotal={data.platformConnections
+                  .filter(c => c.account_id === currentAccountId)
+                  .reduce((acc, c) => acc + (c.stats?.totalSolved || 0), 0)
+                }
+                highlight 
+              />
+              <MutualCard 
+                user={friend} 
+                stats={rival} 
+                platformTotal={data.platformConnections
+                  .filter(c => c.account_id === friendId)
+                  .reduce((acc, c) => acc + (c.stats?.totalSolved || 0), 0)
+                }
+              />
             </div>
           </div>
           <WeeklyPledge currentAccountId={currentAccountId} stats={mine} />
@@ -1313,8 +1328,34 @@ function StatCard({ label, value, Icon }: { label: string; value: React.ReactNod
   return <div className="card-gradient rounded-2xl border border-border p-5 shadow-card transition hover:-translate-y-1"><Icon className="mb-4 size-5 text-primary" /><p className="text-sm text-muted-foreground">{label}</p><p className="mt-1 text-3xl font-black">{value}</p></div>;
 }
 
-function MutualCard({ user, stats, highlight }: { user: MutualUser; stats: ReturnType<typeof userStats>; highlight?: boolean }) {
-  return <div className={`rounded-xl border p-5 ${highlight ? "border-primary bg-primary/10" : "border-border bg-card/70"}`}><div className="text-3xl">{user.emoji}</div><h4 className="mt-2 text-xl font-black">{user.name}</h4><p className="text-sm text-muted-foreground">{user.title}</p><div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm"><span>{stats.total}<small className="block text-muted-foreground">total</small></span><span>{stats.week}<small className="block text-muted-foreground">week</small></span><span>{stats.streak}<small className="block text-muted-foreground">streak</small></span></div></div>;
+function MutualCard({ user, stats, platformTotal = 0, highlight }: { user: MutualUser; stats: ReturnType<typeof userStats>; platformTotal?: number; highlight?: boolean }) {
+  return (
+    <div className={`relative overflow-hidden rounded-xl border p-5 ${highlight ? "border-primary bg-primary/10" : "border-border bg-card/70"}`}>
+      {platformTotal > 0 && (
+        <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-background/50 px-2 py-1 text-[10px] font-black border border-border/50">
+          <Globe className="size-3 text-primary" />
+          {platformTotal} SOLVED
+        </div>
+      )}
+      <div className="text-3xl">{user.emoji}</div>
+      <h4 className="mt-2 text-xl font-black">{user.name}</h4>
+      <p className="text-sm text-muted-foreground">{user.title}</p>
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
+        <span>
+          {stats.total}
+          <small className="block text-muted-foreground uppercase text-[9px] tracking-widest font-bold">Arena</small>
+        </span>
+        <span>
+          {stats.week}
+          <small className="block text-muted-foreground uppercase text-[9px] tracking-widest font-bold">Week</small>
+        </span>
+        <span>
+          {stats.streak}
+          <small className="block text-muted-foreground uppercase text-[9px] tracking-widest font-bold">Streak</small>
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function LogProblem({ currentAccountId, data, compact = false, onRefresh }: { currentAccountId: string; data?: AppData; compact?: boolean; onRefresh?: () => Promise<void> }) {
