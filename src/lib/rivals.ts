@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { AppData, Challenge, Difficulty, MutualUser, Problem, Profile } from "@/types/rivals";
+import { AppData, Challenge, Difficulty, MutualUser, PlatformConnection, Problem, Profile } from "@/types/rivals";
 
 export const platforms = ["LeetCode", "NeetCode", "Codeforces", "HackerRank", "Custom..."];
 export const difficulties = ["Easy", "Medium", "Hard"] as const;
@@ -95,17 +95,20 @@ export function getFriendId(currentAccountId: string, users: MutualUser[]) {
 }
 
 export async function loadAppData(): Promise<AppData> {
-  const [profilesResult, problemsResult, challengesResult] = await Promise.all([
+  const [profilesResult, problemsResult, challengesResult, connectionsResult] = await Promise.all([
     supabase.from("profiles").select("*").order("created_at", { ascending: true }),
     supabase.from("problems").select("*").order("solved_at", { ascending: false }),
     supabase.from("challenges").select("*").order("id", { ascending: true }),
+    supabase.from("platform_connections" as any).select("*").order("created_at", { ascending: true }),
   ]);
   if (profilesResult.error) throw profilesResult.error;
   if (problemsResult.error) throw problemsResult.error;
   if (challengesResult.error) throw challengesResult.error;
+  // platform_connections might not exist yet, so we don't throw on error
   return {
     profiles: (profilesResult.data ?? []) as any as Profile[],
     problems: (problemsResult.data ?? []).map(mapProblem),
     challenges: (challengesResult.data ?? []) as any as Challenge[],
+    platformConnections: (connectionsResult.data ?? []) as any as PlatformConnection[],
   };
 }

@@ -45,8 +45,51 @@ export type Challenge = {
 
 export type StreakStatus = "Safe" | "Caution" | "Critical";
 
+export type PlatformConnection = {
+  id: string;
+  account_id: string;
+  platform: "LeetCode" | "GeeksforGeeks";
+  platform_username: string;
+  last_synced_at: string | null;
+  stats: LeetCodeStats | GfgStats | null;
+  created_at: string;
+};
+
+export type LeetCodeStats = {
+  platform: "LeetCode";
+  username: string;
+  totalSolved: number;
+  easySolved: number;
+  mediumSolved: number;
+  hardSolved: number;
+  totalQuestions: number;
+  easyTotal: number;
+  mediumTotal: number;
+  hardTotal: number;
+  ranking: number;
+  streak: number;
+  reputation: number;
+  contributionPoints: number;
+  solvedSlugs?: string[];
+};
+
+export type GfgStats = {
+  platform: "GeeksforGeeks";
+  username: string;
+  totalSolved: number;
+  codingScore: number;
+  totalScore: number;
+  monthlyScore: number;
+  easySolved: number;
+  mediumSolved: number;
+  hardSolved: number;
+  instituteRank: string;
+  solvedSlugs?: string[];
+};
+
 export type AppData = {
   profiles: Profile[];
   problems: Problem[];
   challenges: Challenge[];
+  platformConnections: PlatformConnection[];
 };

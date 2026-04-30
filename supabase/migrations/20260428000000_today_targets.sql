@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS public.today_targets (
 -- Per-user solved status for each slot
 CREATE TABLE IF NOT EXISTS public.today_target_solutions (
   day        TEXT    NOT NULL,
-  slot       INTEGER NOT NULL CHECK (slot BETWEEN 0 AND 3),
+  slot       INTEGER NOT NULL CHECK (slot BETWEEN 0 AND 99),
   account_id UUID    NOT NULL,
   solved     BOOLEAN NOT NULL DEFAULT false,
   solved_at  TIMESTAMP WITH TIME ZONE,
