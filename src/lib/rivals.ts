@@ -20,12 +20,23 @@ export function mapProblem(problem: any): Problem {
   };
 }
 
-export function mapUser(profile: Profile): MutualUser {
+export function mapUser(profile: Profile, problems?: Problem[]): MutualUser {
+  let emoji = profile.emoji;
+  let title = profile.title;
+  
+  if (problems) {
+    const stats = userStats(problems, profile.account_id);
+    if (stats.streak === 0 && stats.total > 0) {
+      emoji = "🤡";
+      title = "Streak Breaker";
+    }
+  }
+
   return {
     id: profile.account_id,
     name: profile.display_name,
-    emoji: profile.emoji,
-    title: profile.title,
+    emoji,
+    title,
     username: profile.username,
     mutualUserId: profile.rival_user_id,
   };
@@ -69,6 +80,7 @@ export function userStats(problems: Problem[], accountId: string) {
     hard: mine.filter((problem) => problem.difficulty === "Hard").length,
     minutes: mine.reduce((sum, problem) => sum + problem.timeTaken, 0),
     solvedToday,
+    xp: mine.reduce((acc, p) => acc + (p.difficulty === 'Hard' ? 100 : p.difficulty === 'Medium' ? 30 : 10), 0),
   };
 }
 

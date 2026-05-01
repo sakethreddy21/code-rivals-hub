@@ -172,7 +172,7 @@ export default function Page() {
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => refresh())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "problems" }, (payload) => {
         const newProblem = payload.new as any;
-        const users = data.profiles.map(mapUser);
+        const users = data.profiles.map(p => mapUser(p, data.problems));
         const friendId = getFriendId(currentAccountId, users);
         
         if (newProblem.account_id === friendId) {
@@ -201,6 +201,16 @@ export default function Page() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "challenges" }, () => refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "accounts" }, () => refresh())
+      .on("broadcast", { event: "taunt" }, (payload) => {
+        if (payload.payload.to === currentAccountId) {
+          toast(`🔔 Wake up and code!`, { 
+            description: `${payload.payload.from} is nudging you. They're probably cooking.`,
+            duration: 6000,
+            icon: <Flame className="text-orange-500" />
+          });
+          new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(() => {});
+        }
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -392,7 +402,7 @@ function ProfileSetup({ accountId, onCreated }: { accountId: string; onCreated: 
 
 function CompetitionApp({ currentAccountId, data, onRefresh, onSync, onLogout }: { currentAccountId: string; data: AppData; onRefresh: () => Promise<void>; onSync: () => Promise<void>; onLogout: () => void }) {
   const [view, setView] = useState<ViewId>("dashboard");
-  const users = data.profiles.map(mapUser);
+  const users = data.profiles.map(p => mapUser(p, data.problems));
   const user = users.find((item) => item.id === currentAccountId)!;
   const friendId = getFriendId(currentAccountId, users);
   const friend = users.find((item) => item.id === friendId) ?? user;
@@ -503,6 +513,14 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
                   .filter(c => c.account_id === friendId)
                   .reduce((acc, c) => acc + (c.stats?.totalSolved || 0), 0)
                 }
+                onTaunt={() => {
+                  supabase.channel("rivals-live").send({
+                    type: "broadcast",
+                    event: "taunt",
+                    payload: { from: user.name, to: friend.id }
+                  });
+                  toast.success("Nudge sent! 🔔", { description: "Hopefully they're paying attention." });
+                }}
               />
             </div>
           </div>
@@ -535,6 +553,8 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
   }, []);
 
   const [links, setLinks] = useState<string[]>([""]);
+  const [carryOverLinks, setCarryOverLinks] = useState<{link: string; day: string; slot: number}[]>([]);
+  const [carryOverSolvedDraft, setCarryOverSolvedDraft] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [solvedDraft, setSolvedDraft] = useState<Record<string, boolean>>({});
   const [solvedMeta, setSolvedMeta] = useState<Record<string, { difficulty: string; timeTaken: string }>>({});
@@ -545,19 +565,18 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const userNameById = useMemo(() => new Map(users.map((u) => [u.id, `${u.emoji} ${u.name}`])), [users]);
 
-  const fetchTitle = async (url: string, slot: number) => {
+  const fetchTitle = async (url: string, slotKey: string | number) => {
     const trimmed = url.trim();
     if (!trimmed) return;
     try {
       const res = await fetch(`/api/problem-metadata?url=${encodeURIComponent(trimmed)}`);
       if (res.ok) {
         const meta = await res.json();
-        setFetchedTitles(prev => ({ ...prev, [String(slot)]: meta }));
-        // If no difficulty set for this slot yet, auto-set it from meta
-        if (!solvedMeta[String(slot)]) {
+        setFetchedTitles(prev => ({ ...prev, [String(slotKey)]: meta }));
+        if (!solvedMeta[String(slotKey)]) {
           setSolvedMeta(prev => ({ 
             ...prev, 
-            [String(slot)]: { difficulty: meta.difficulty || "Medium", timeTaken: "25" } 
+            [String(slotKey)]: { difficulty: meta.difficulty || "Medium", timeTaken: "25" } 
           }));
         }
       }
@@ -575,6 +594,15 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
   }, [links]);
 
   useEffect(() => {
+    carryOverLinks.forEach((co) => {
+      const key = `${co.day}_${co.slot}`;
+      if (co.link.trim() && !fetchedTitles[key]) {
+        fetchTitle(co.link, key);
+      }
+    });
+  }, [carryOverLinks]);
+
+  useEffect(() => {
     let mounted = true;
     const load = async () => {
       const { data: row, error } = await (supabase as any)
@@ -588,22 +616,49 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
       if (!error && (row as any)?.links) {
         const arr = Array.isArray((row as any).links) ? ((row as any).links as string[]) : [];
         setLinks(arr.length > 0 ? arr : [""]);
-        setTimeout(() => setIsInitialLoad(false), 500);
-        return;
-      }
-
-      const local = localStorage.getItem(`today_targets_${dayKey}`);
-      if (local) {
-        try {
-          const arr = JSON.parse(local) as string[];
-          if (Array.isArray(arr)) setLinks(arr.length > 0 ? arr : [""]);
-        } catch {}
+      } else {
+        const local = localStorage.getItem(`today_targets_${dayKey}`);
+        if (local) {
+          try {
+            const arr = JSON.parse(local) as string[];
+            if (Array.isArray(arr)) setLinks(arr.length > 0 ? arr : [""]);
+          } catch {}
+        }
       }
       setTimeout(() => setIsInitialLoad(false), 500);
+
+      // Load carry-overs
+      const { data: pastTargets } = await (supabase as any)
+        .from("today_targets")
+        .select("day, links")
+        .lt("day", dayKey)
+        .order("day", { ascending: true });
+
+      if (pastTargets && mounted) {
+        const { data: pastSolutions } = await (supabase as any)
+          .from("today_target_solutions")
+          .select("day, slot, solved")
+          .lt("day", dayKey)
+          .eq("account_id", currentAccountId);
+
+        const pastCarryOvers: { link: string; day: string; slot: number }[] = [];
+        for (const target of pastTargets) {
+          const linksArr = Array.isArray(target.links) ? target.links : [];
+          for (let i = 0; i < linksArr.length; i++) {
+            const link = linksArr[i];
+            if (!link?.trim()) continue;
+            const sol = pastSolutions?.find((s: any) => s.day === target.day && String(s.slot) === String(i));
+            if (!sol?.solved) {
+              pastCarryOvers.push({ link, day: target.day, slot: i });
+            }
+          }
+        }
+        setCarryOverLinks(pastCarryOvers);
+      }
     };
     load();
     return () => { mounted = false; };
-  }, [dayKey]);
+  }, [dayKey, currentAccountId]);
 
   useEffect(() => {
     if (isInitialLoad) return;
@@ -623,6 +678,12 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
           const obj = JSON.parse(local) as Record<string, boolean>;
           if (mounted && obj && typeof obj === "object") setSolvedDraft(obj);
         } catch {}
+      }
+
+      const carryLocalKey = `carry_over_solved_${currentAccountId}`;
+      const carryLocal = localStorage.getItem(carryLocalKey);
+      if (carryLocal && mounted) {
+        try { setCarryOverSolvedDraft(JSON.parse(carryLocal)); } catch {}
       }
 
       const loggedKey = `today_target_logged_${dayKey}_${currentAccountId}`;
@@ -696,7 +757,8 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
   const pendingAutoSave = useRef(false);
 
   useEffect(() => {
-    if (!data?.platformConnections?.length || !links.some((l) => l.trim())) return;
+    if (!data?.platformConnections?.length) return;
+    if (!links.some((l) => l.trim()) && !carryOverLinks.some((c) => c.link.trim())) return;
 
     const myConnections = data.platformConnections.filter((c) => c.account_id === currentAccountId);
     if (!myConnections.length) return;
@@ -730,15 +792,28 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
       }
     });
 
+    const newCarryDraft = { ...carryOverSolvedDraft };
+    carryOverLinks.forEach((co) => {
+      const slotKey = `${co.day}_${co.slot}`;
+      if (!co.link.trim() || newCarryDraft[slotKey]) return;
+      
+      const slug = extractSlug(co.link).toLowerCase();
+      if (slug && allSolvedSlugs.has(slug)) {
+        newCarryDraft[slotKey] = true;
+        autoMarked = true;
+      }
+    });
+
     if (autoMarked) {
       setSolvedDraft(newDraft);
+      setCarryOverSolvedDraft(newCarryDraft);
       pendingAutoSave.current = true;
       toast.success("🎯 Auto-detected solved problems!", {
         description: "Saving progress automatically...",
         duration: 4000,
       });
     }
-  }, [data?.platformConnections, links, currentAccountId]);
+  }, [data?.platformConnections, links, carryOverLinks, currentAccountId]);
 
   // Auto-save when problems are auto-marked as solved
   useEffect(() => {
@@ -753,6 +828,12 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
         cleaned[String(slot)] = !!solvedDraft[String(slot)];
       }
 
+      const carryCleaned: Record<string, boolean> = {};
+      for (const co of carryOverLinks) {
+        const key = `${co.day}_${co.slot}`;
+        carryCleaned[key] = !!carryOverSolvedDraft[key];
+      }
+
       const newAlreadyLogged = { ...alreadyLogged };
       let newlyLoggedCount = 0;
 
@@ -760,6 +841,9 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
         // Save to localStorage
         const localKey = `today_target_solved_${dayKey}_${currentAccountId}`;
         localStorage.setItem(localKey, JSON.stringify(cleaned));
+
+        const carryLocalKey = `carry_over_solved_${currentAccountId}`;
+        localStorage.setItem(carryLocalKey, JSON.stringify(carryCleaned));
 
         // Log newly solved problems to the problems table
         for (let slot = 0; slot < links.length; slot++) {
@@ -784,6 +868,28 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
           }
         }
 
+        for (const co of carryOverLinks) {
+          const slotKey = `${co.day}_${co.slot}`;
+          const link = co.link.trim();
+          if (carryCleaned[slotKey] && link && !alreadyLogged[slotKey]) {
+            const meta = solvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
+            const { error } = await supabase.from("problems" as any).insert({
+              account_id: currentAccountId,
+              name: deriveName(link, co.slot),
+              link,
+              platform: derivePlatform(link),
+              difficulty: meta.difficulty,
+              topic: "Target Problem",
+              time_taken: Number(meta.timeTaken) || 0,
+              notes: `Carry-Over from ${co.day} -- Auto-synced`,
+            });
+            if (!error) {
+              newAlreadyLogged[slotKey] = true;
+              newlyLoggedCount++;
+            }
+          }
+        }
+
         // Save solved state
         const loggedKey = `today_target_logged_${dayKey}_${currentAccountId}`;
         localStorage.setItem(loggedKey, JSON.stringify(newAlreadyLogged));
@@ -798,13 +904,26 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
           solved_at: cleaned[String(slot)] ? new Date().toISOString() : null,
         }));
 
+        const carryRows = carryOverLinks.map(co => ({
+          day: co.day,
+          slot: co.slot,
+          account_id: currentAccountId,
+          solved: !!carryCleaned[`${co.day}_${co.slot}`],
+          solved_at: carryCleaned[`${co.day}_${co.slot}`] ? new Date().toISOString() : null,
+        }));
+
+        const allRows = [...rows, ...carryRows];
+
         await (supabase as any)
           .from("today_target_solutions")
-          .upsert(rows, { onConflict: "day,slot,account_id" });
+          .upsert(allRows, { onConflict: "day,slot,account_id" });
 
         if (newlyLoggedCount > 0) {
           toast.success(`✅ Auto-saved ${newlyLoggedCount} solved problem${newlyLoggedCount > 1 ? "s" : ""}!`);
         }
+
+        // Remove successfully saved carry-overs from the state so they disappear from the UI
+        setCarryOverLinks(prev => prev.filter(co => !carryCleaned[`${co.day}_${co.slot}`]));
 
         await onRefresh?.();
       } catch (e) {
@@ -813,7 +932,7 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [solvedDraft]);
+  }, [solvedDraft, carryOverSolvedDraft]);
 
   const save = async () => {
     const cleaned = links.map((l) => l.trim());
@@ -840,6 +959,12 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
       cleaned[String(slot)] = !!solvedDraft[String(slot)];
     }
 
+    const carryCleaned: Record<string, boolean> = {};
+    for (const co of carryOverLinks) {
+      const key = `${co.day}_${co.slot}`;
+      carryCleaned[key] = !!carryOverSolvedDraft[key];
+    }
+
     setSaveProgressBusy(true);
     const newAlreadyLogged = { ...alreadyLogged };
     let newlyLoggedCount = 0;
@@ -847,6 +972,9 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
     try {
       const localKey = `today_target_solved_${dayKey}_${currentAccountId}`;
       localStorage.setItem(localKey, JSON.stringify(cleaned));
+      
+      const carryLocalKey = `carry_over_solved_${currentAccountId}`;
+      localStorage.setItem(carryLocalKey, JSON.stringify(carryCleaned));
 
       for (let slot = 0; slot < links.length; slot++) {
         const slotKey = String(slot);
@@ -870,6 +998,28 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
         }
       }
 
+      for (const co of carryOverLinks) {
+        const slotKey = `${co.day}_${co.slot}`;
+        const link = co.link.trim();
+        if (carryCleaned[slotKey] && link && !alreadyLogged[slotKey]) {
+          const meta = solvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
+          const { error } = await supabase.from("problems" as any).insert({
+            account_id: currentAccountId,
+            name: deriveName(link, co.slot),
+            link,
+            platform: derivePlatform(link),
+            difficulty: meta.difficulty,
+            topic: "Target Problem",
+            time_taken: Number(meta.timeTaken) || 0,
+            notes: `Carry-Over from ${co.day}`,
+          });
+          if (!error) {
+            newAlreadyLogged[slotKey] = true;
+            newlyLoggedCount++;
+          }
+        }
+      }
+
       const loggedKey = `today_target_logged_${dayKey}_${currentAccountId}`;
       localStorage.setItem(loggedKey, JSON.stringify(newAlreadyLogged));
       setAlreadyLogged(newAlreadyLogged);
@@ -882,9 +1032,19 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
         solved_at: cleaned[String(slot)] ? new Date().toISOString() : null,
       }));
 
+      const carryRows = carryOverLinks.map(co => ({
+        day: co.day,
+        slot: co.slot,
+        account_id: currentAccountId,
+        solved: !!carryCleaned[`${co.day}_${co.slot}`],
+        solved_at: carryCleaned[`${co.day}_${co.slot}`] ? new Date().toISOString() : null,
+      }));
+
+      const allRows = [...rows, ...carryRows];
+
       const { error } = await (supabase as any)
         .from("today_target_solutions")
-        .upsert(rows, { onConflict: "day,slot,account_id" });
+        .upsert(allRows, { onConflict: "day,slot,account_id" });
 
       if (error) {
         console.error("Supabase Save Error:", error);
@@ -894,10 +1054,14 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
             : error.message 
         });
         // Still saved locally, so we don't return
-      } else if (newlyLoggedCount > 0) {
-        toast.success(`Progress saved · ${newlyLoggedCount} problem${newlyLoggedCount > 1 ? "s" : ""} logged!`);
       } else {
-        toast.success("Progress saved");
+        if (newlyLoggedCount > 0) {
+          toast.success(`Progress saved · ${newlyLoggedCount} problem${newlyLoggedCount > 1 ? "s" : ""} logged!`);
+        } else {
+          toast.success("Progress saved");
+        }
+        // Remove successfully saved carry-overs from the state
+        setCarryOverLinks(prev => prev.filter(co => !carryCleaned[`${co.day}_${co.slot}`]));
       }
 
       await onRefresh?.();
@@ -1169,6 +1333,112 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
           >
             <Plus className="mr-2 size-5" /> Add another target problem
           </Button>
+
+          {carryOverLinks.length > 0 && (
+            <div className="mt-8 border-t border-border pt-6">
+              <h4 className="mb-4 text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <Flame className="size-4 text-orange-500" />
+                Your Carry-Over Targets
+              </h4>
+              <div className="grid gap-4">
+                {carryOverLinks.map((co, idx) => {
+                  const slotKey = `${co.day}_${co.slot}`;
+                  const isSolved = !!carryOverSolvedDraft[slotKey];
+                  const isLogged = !!alreadyLogged[slotKey];
+                  const meta = solvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
+                  const link = co.link;
+
+                  return (
+                    <div key={slotKey} className="grid gap-2 opacity-90 transition-opacity hover:opacity-100">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <div className="relative flex-1">
+                          <input
+                            readOnly
+                            value={link}
+                            className="h-11 w-full rounded-lg border border-input bg-background/50 px-3 pr-28 outline-none"
+                          />
+                          {fetchedTitles[slotKey] && link.trim() && (
+                            <div className="mt-1.5 flex items-center gap-2 px-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20">
+                                {fetchedTitles[slotKey].platform}
+                              </span>
+                              <span className="text-xs font-bold truncate max-w-[200px] text-muted-foreground">
+                                {fetchedTitles[slotKey].name}
+                              </span>
+                            </div>
+                          )}
+                          <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                            {isSolved && !isLogged && (
+                              <div className="hidden items-center gap-1.5 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-bold text-green-400 sm:flex">
+                                <CheckCircle2 className="size-3" />
+                                SYNCED
+                              </div>
+                            )}
+                            <label className={`inline-flex h-8 cursor-pointer select-none items-center gap-2 rounded-md border px-3 text-xs font-black transition ${isLogged && isSolved ? "border-green-500/50 bg-green-500/10 text-green-400" : "border-border bg-secondary/50"}`}>
+                              <input
+                                type="checkbox"
+                                className="accent-primary"
+                                checked={isSolved}
+                                onChange={(e) => setCarryOverSolvedDraft((s) => ({ ...s, [slotKey]: e.target.checked }))}
+                              />
+                              {isLogged && isSolved ? "Logged" : "Solved"}
+                            </label>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <Button variant="outline" size="sm" className="h-11 shrink-0 gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10" asChild>
+                            <a href={link.startsWith('http') ? link : `https://${link}`} target="_blank" rel="noreferrer">
+                              <ExternalLink className="size-4" /> See the problem
+                            </a>
+                          </Button>
+                        </div>
+                      </div>
+
+                      {isSolved && !isLogged && (
+                        <div className="ml-1 flex flex-wrap items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                          <span className="text-xs text-muted-foreground">Difficulty:</span>
+                          <div className="inline-flex rounded-md border border-border bg-secondary/40 p-0.5">
+                            {difficultyTabs.map((d) => (
+                              <button
+                                key={d}
+                                type="button"
+                                onClick={() => setSolvedMeta((m) => ({ ...m, [slotKey]: { ...meta, difficulty: d } }))}
+                                className={`rounded-sm px-2 py-1 text-xs font-bold transition ${meta.difficulty === d ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground hover:text-foreground"}`}
+                              >
+                                {d}
+                              </button>
+                            ))}
+                          </div>
+                          <span className="text-xs text-muted-foreground">Time:</span>
+                          <div className="inline-flex rounded-md border border-border bg-secondary/40 p-0.5">
+                            {timeTabs.map((t) => (
+                              <button
+                                key={t.value}
+                                type="button"
+                                onClick={() => setSolvedMeta((m) => ({ ...m, [slotKey]: { ...meta, timeTaken: t.value } }))}
+                                className={`rounded-sm px-2 py-1 text-xs font-bold transition ${meta.timeTaken === t.value ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                              >
+                                {t.label}
+                              </button>
+                            ))}
+                          </div>
+                          <span className="text-xs font-semibold text-primary">→ Will log as solved</span>
+                        </div>
+                      )}
+
+                      {isLogged && isSolved && (
+                        <p className="ml-1 text-xs font-semibold text-green-400">✓ Logged to your problems</p>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <span className="rounded-full bg-orange-500/10 text-orange-500/80 px-2 py-1">From {co.day}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1328,7 +1598,7 @@ function StatCard({ label, value, Icon }: { label: string; value: React.ReactNod
   return <div className="card-gradient rounded-2xl border border-border p-5 shadow-card transition hover:-translate-y-1"><Icon className="mb-4 size-5 text-primary" /><p className="text-sm text-muted-foreground">{label}</p><p className="mt-1 text-3xl font-black">{value}</p></div>;
 }
 
-function MutualCard({ user, stats, platformTotal = 0, highlight }: { user: MutualUser; stats: ReturnType<typeof userStats>; platformTotal?: number; highlight?: boolean }) {
+function MutualCard({ user, stats, platformTotal = 0, highlight, onTaunt }: { user: MutualUser; stats: ReturnType<typeof userStats>; platformTotal?: number; highlight?: boolean; onTaunt?: () => void }) {
   return (
     <div className={`relative overflow-hidden rounded-xl border p-5 ${highlight ? "border-primary bg-primary/10" : "border-border bg-card/70"}`}>
       {platformTotal > 0 && (
@@ -1337,13 +1607,20 @@ function MutualCard({ user, stats, platformTotal = 0, highlight }: { user: Mutua
           {platformTotal} SOLVED
         </div>
       )}
-      <div className="text-3xl">{user.emoji}</div>
+      <div className="flex justify-between items-start">
+        <div className="text-3xl">{user.emoji}</div>
+        {onTaunt && (
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-500 hover:text-orange-400 hover:bg-orange-500/10" onClick={onTaunt} title="Nudge / Taunt">
+            <Flame className="size-4" />
+          </Button>
+        )}
+      </div>
       <h4 className="mt-2 text-xl font-black">{user.name}</h4>
       <p className="text-sm text-muted-foreground">{user.title}</p>
       <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
         <span>
-          {stats.total}
-          <small className="block text-muted-foreground uppercase text-[9px] tracking-widest font-bold">Arena</small>
+          {stats.xp}
+          <small className="block text-muted-foreground uppercase text-[9px] tracking-widest font-bold">XP</small>
         </span>
         <span>
           {stats.week}
@@ -2737,7 +3014,7 @@ function DifficultyBar({ label, solved, total, color }: { label: string; solved:
 
 function Profile({ currentAccountId, profiles, users, problems, onRefresh, onLogout }: { currentAccountId: string; profiles: ProfileType[]; users: MutualUser[]; problems: Problem[]; onRefresh: () => Promise<void>; onLogout: () => void }) {
   const profile = profiles.find((item) => item.account_id === currentAccountId)!;
-  const user = mapUser(profile);
+  const user = mapUser(profile, problems);
   const stats = userStats(problems, currentAccountId);
   const [mutualUsername, setMutualUsername] = useState(users.find((item) => item.id === profile.rival_user_id)?.username ?? "");
   const [resetting, setResetting] = useState(false);
