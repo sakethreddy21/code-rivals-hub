@@ -202,13 +202,17 @@ export default function Page() {
       .on("postgres_changes", { event: "*", schema: "public", table: "challenges" }, () => refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "accounts" }, () => refresh())
       .on("broadcast", { event: "taunt" }, (payload) => {
+        // Play the sound for BOTH sender and receiver so you can hear what you sent!
+        const tracks = ['/audio1.m4a', '/audio2.m4a'];
+        const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
+        new Audio(randomTrack).play().catch((err) => console.error("Audio playback error:", err));
+
         if (payload.payload.to === currentAccountId) {
           toast(`🔔 Wake up and code!`, { 
             description: `${payload.payload.from} is nudging you. They're probably cooking.`,
             duration: 6000,
             icon: <Flame className="text-orange-500" />
           });
-          new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(() => {});
         }
       })
       .subscribe();
