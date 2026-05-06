@@ -437,18 +437,24 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
   const [presence, setPresence] = useState<Record<string, any>>({});
 
   useEffect(() => {
-    const channel = supabase
-      .channel('app_presence')
+    const channel = supabase.channel('app_presence');
+    
+    channel
       .on('presence', { event: 'sync' }, () => {
-        setPresence(channel.presenceState());
+        const state = channel.presenceState();
+        console.log("Presence Sync:", state);
+        setPresence(state);
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          await channel.track({ 
+          console.log("Joined presence channel as", currentAccountId);
+          const status = await channel.track({ 
             id: currentAccountId, 
+            account_id: currentAccountId,
             online_at: new Date().toISOString(),
             name: user.name
           });
+          if (status !== 'ok') console.error("Presence track failed:", status);
         }
       });
 
@@ -541,7 +547,7 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
                   .filter(c => c.account_id === friendId)
                   .reduce((acc, c) => acc + (c.stats?.totalSolved || 0), 0)
                 }
-                isOnline={Object.values(presence).some(p => (p as any)[0]?.id === friend.id)}
+                isOnline={Object.values(presence).flat().some(p => (p as any).id === friend.id)}
                 onTaunt={() => {
                   supabase.channel("rivals-live").send({
                     type: "broadcast",
@@ -1533,7 +1539,7 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
           {users.map((u) => {
             const count = links.filter((_, slot) => allSolved[String(slot)]?.has(u.id)).length;
             const total = links.filter((l) => l.trim()).length;
-            const isOnline = Object.values(presence).some(p => (p as any)[0]?.id === u.id);
+            const isOnline = Object.values(presence).flat().some(p => (p as any).id === u.id);
             return (
               <div key={u.id} className={`relative flex items-center justify-between rounded-xl border p-4 transition ${u.id === currentAccountId ? "border-primary bg-primary/10" : "border-border bg-card/70"}`}>
                 {isOnline && (
