@@ -36,14 +36,6 @@ export type Problem = {
   solvedAt: string;
 };
 
-export type Challenge = {
-  id: string;
-  title: string;
-  target: number;
-  topic: string;
-  reward: string;
-};
-
 export type StreakStatus = "Safe" | "Caution" | "Critical";
 
 export type PlatformConnection = {
@@ -91,6 +83,5 @@ export type GfgStats = {
 export type AppData = {
   profiles: Profile[];
   problems: Problem[];
-  challenges: Challenge[];
   platformConnections: PlatformConnection[];
 };
