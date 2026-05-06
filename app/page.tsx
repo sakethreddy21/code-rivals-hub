@@ -434,6 +434,28 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
   const user = users.find((item) => item.id === currentAccountId)!;
   const friend = users.find((item) => item.id === friendId) ?? user;
   const [tab, setTab] = useState<"overview" | "today-target">("overview");
+  const [presence, setPresence] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('app_presence')
+      .on('presence', { event: 'sync' }, () => {
+        setPresence(channel.presenceState());
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ 
+            id: currentAccountId, 
+            online_at: new Date().toISOString(),
+            name: user.name
+          });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentAccountId, user.name]);
 
   useEffect(() => {
     if (tab === "today-target") {
@@ -477,7 +499,7 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
       </div>
 
       {tab === "today-target" ? (
-        <TodayTarget currentAccountId={currentAccountId} users={users} onRefresh={onRefresh} data={data} />
+        <TodayTarget currentAccountId={currentAccountId} users={users} onRefresh={onRefresh} data={data} presence={presence} />
       ) : (
         <>
       <div className="grid gap-4 md:grid-cols-4">
@@ -510,6 +532,7 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
                   .reduce((acc, c) => acc + (c.stats?.totalSolved || 0), 0)
                 }
                 highlight 
+                isOnline={true}
               />
               <MutualCard 
                 user={friend} 
@@ -518,6 +541,7 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
                   .filter(c => c.account_id === friendId)
                   .reduce((acc, c) => acc + (c.stats?.totalSolved || 0), 0)
                 }
+                isOnline={Object.values(presence).some(p => (p as any)[0]?.id === friend.id)}
                 onTaunt={() => {
                   supabase.channel("rivals-live").send({
                     type: "broadcast",
@@ -548,7 +572,7 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
   );
 }
 
-function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAccountId: string; users: MutualUser[]; onRefresh?: () => Promise<void>; data?: AppData }) {
+function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { currentAccountId: string; users: MutualUser[]; onRefresh?: () => Promise<void>; data?: AppData; presence: Record<string, any> }) {
   const dayKey = useMemo(() => {
     const d = new Date();
     const y = d.getFullYear();
@@ -566,7 +590,6 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
   const [alreadyLogged, setAlreadyLogged] = useState<Record<string, boolean>>({});
   const [saveProgressBusy, setSaveProgressBusy] = useState(false);
   const [fetchedTitles, setFetchedTitles] = useState<Record<string, { name: string; platform: string; difficulty: string; topic: string }>>({});
-  const [presence, setPresence] = useState<Record<string, any>>({});
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [hints, setHints] = useState<Record<string, string>>({});
   const [fetchingHint, setFetchingHint] = useState<Record<string, boolean>>({});
@@ -1184,18 +1207,7 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
           onRefresh?.();
         }
       )
-      .on('presence', { event: 'sync' }, () => {
-        setPresence(channel.presenceState());
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({ 
-            id: currentAccountId, 
-            online_at: new Date().toISOString(),
-            name: users.find(u => u.id === currentAccountId)?.name
-          });
-        }
-      });
+      .subscribe();
 
     return () => { 
       mounted = false; 
@@ -1671,9 +1683,15 @@ function StatCard({ label, value, Icon }: { label: string; value: React.ReactNod
   return <div className="card-gradient rounded-2xl border border-border p-5 shadow-card transition hover:-translate-y-1"><Icon className="mb-4 size-5 text-primary" /><p className="text-sm text-muted-foreground">{label}</p><p className="mt-1 text-3xl font-black">{value}</p></div>;
 }
 
-function MutualCard({ user, stats, platformTotal = 0, highlight, onTaunt }: { user: MutualUser; stats: ReturnType<typeof userStats>; platformTotal?: number; highlight?: boolean; onTaunt?: () => void }) {
+function MutualCard({ user, stats, platformTotal = 0, highlight, onTaunt, isOnline }: { user: MutualUser; stats: ReturnType<typeof userStats>; platformTotal?: number; highlight?: boolean; onTaunt?: () => void; isOnline?: boolean }) {
   return (
     <div className={`relative overflow-hidden rounded-xl border p-5 ${highlight ? "border-primary bg-primary/10" : "border-border bg-card/70"}`}>
+      {isOnline && (
+        <div className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-accent/20 border border-accent/30 px-2 py-0.5 text-[8px] font-black text-accent shadow-glow animate-in fade-in zoom-in">
+          <div className="size-1.5 rounded-full bg-accent animate-pulse" />
+          LIVE
+        </div>
+      )}
       {platformTotal > 0 && (
         <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-background/50 px-2 py-1 text-[10px] font-black border border-border/50">
           <Globe className="size-3 text-primary" />
