@@ -4,6 +4,7 @@ import {
   Activity,
   BarChart3,
   BookOpenCheck,
+  Coffee,
   ExternalLink,
   Flame,
   Globe,
@@ -14,6 +15,8 @@ import {
   CheckCircle2,
   LogOut,
   Medal,
+  Pause,
+  Play,
   Plus,
   RefreshCw,
   Search,
@@ -21,6 +24,7 @@ import {
   Sparkles,
   Swords,
   Target,
+  Timer,
   Trash2,
   Trophy,
   User,
@@ -70,8 +74,9 @@ type ViewId = (typeof navItems)[number]["id"];
 
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "leaderboard", label: "Leaderboard", icon: Trophy },
-  { id: "log", label: "Log Problem", icon: Plus },
+  { id: "today-target", label: "Today Target", icon: Target },
+  { id: "focus", label: "FocusTodo", icon: Timer },
+  { id: "focus-analytics", label: "Focus Analytics", icon: BarChart3 },
   { id: "problems", label: "My Problems", icon: BookOpenCheck },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "platform-stats", label: "Platform Stats", icon: Globe },
@@ -418,7 +423,7 @@ function CompetitionApp({ currentAccountId, data, onRefresh, onSync, onLogout }:
     toast.success("Logged out"); 
   };
 
-  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">The Arena</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} friend={friend} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} onSync={onSync} />}{view === "leaderboard" && <Leaderboard users={users} problems={data.problems} />}{view === "log" && <LogProblem currentAccountId={currentAccountId} data={data} onRefresh={onRefresh} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={data.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "platform-stats" && <PlatformStats currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} />}{view === "hall-of-fame" && <HallOfFame users={users} problems={data.problems} />}{view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={users} onRefresh={onRefresh} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={users} problems={data.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
+  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">The Arena</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} friend={friend} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} onSync={onSync} />}{view === "today-target" && <TodayTargetView currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} onSync={onSync} />}{view === "focus" && <FocusTodo currentAccountId={currentAccountId} />}{view === "focus-analytics" && <FocusAnalytics currentAccountId={currentAccountId} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={data.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "platform-stats" && <PlatformStats currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} />}{view === "hall-of-fame" && <HallOfFame users={users} problems={data.problems} />}{view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={users} onRefresh={onRefresh} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={users} problems={data.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
 }
 
 function Header({ user, friend }: { user: MutualUser; friend: MutualUser }) {
@@ -430,10 +435,8 @@ function Header({ user, friend }: { user: MutualUser; friend: MutualUser }) {
 function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { currentAccountId: string; data: AppData; users: MutualUser[]; onRefresh: () => Promise<void>; onSync: () => Promise<void> }) {
   const mine = userStats(data.problems, currentAccountId);
   const friendId = getFriendId(currentAccountId, users);
-  const rival = userStats(data.problems, friendId);
   const user = users.find((item) => item.id === currentAccountId)!;
   const friend = users.find((item) => item.id === friendId) ?? user;
-  const [tab, setTab] = useState<"overview" | "today-target">("overview");
   const [presence, setPresence] = useState<Record<string, any>>({});
 
   useEffect(() => {
@@ -463,117 +466,105 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
     };
   }, [currentAccountId, user.name]);
 
-  useEffect(() => {
-    if (tab === "today-target") {
-      toast.info("Syncing platform stats...", { icon: <RefreshCw className="animate-spin size-4" />, duration: 2000 });
-      onSync();
-    }
-  }, [tab]);
-
   const streakInfo = getStreakStatus(mine.solvedToday);
+  const rival = userStats(data.problems, friendId);
+  const myPlatformTotal = data.platformConnections
+    .filter((c) => c.account_id === currentAccountId)
+    .reduce((acc, c) => acc + ((c.stats as any)?.totalSolved ?? 0), 0);
+  const friendPlatformTotal = data.platformConnections
+    .filter((c) => c.account_id === friend.id)
+    .reduce((acc, c) => acc + ((c.stats as any)?.totalSolved ?? 0), 0);
+  const isUserOnline = Object.values(presence).flat().some((p) => (p as any).id === user.id);
+  const isFriendOnline = Object.values(presence).flat().some((p) => (p as any).id === friend.id);
+  const hasFriend = friend.id !== user.id;
+
+  const sendNudge = () => {
+    supabase.channel("rivals-live").send({
+      type: "broadcast",
+      event: "taunt",
+      payload: { from: user.name, to: friend.id },
+    });
+    toast.success("Nudge sent! 🔔", { description: "Hopefully they're paying attention." });
+  };
 
   return (
     <section className="animate-enter space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="inline-flex rounded-lg border border-border bg-secondary/40 p-1">
-          <button
-            type="button"
-            onClick={() => setTab("overview")}
-            className={`px-3 py-2 text-xs font-black transition ${
-              tab === "overview"
-                ? "rounded-md bg-primary text-primary-foreground shadow-glow"
-                : "rounded-md text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("today-target")}
-            className={`px-3 py-2 text-xs font-black transition ${
-              tab === "today-target"
-                ? "rounded-md bg-primary text-primary-foreground shadow-glow"
-                : "rounded-md text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Today Target
-          </button>
-        </div>
-        <div className="text-xs text-muted-foreground">
-          {tab === "today-target" ? "Post 4 links and race." : "Your arena overview."}
-        </div>
-      </div>
-
-      {tab === "today-target" ? (
-        <TodayTarget currentAccountId={currentAccountId} users={users} onRefresh={onRefresh} data={data} presence={presence} />
-      ) : (
-        <>
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard label="Total Solved" value={mine.total} Icon={Trophy} />
         <StatCard label="Today" value={mine.today} Icon={Zap} />
-        <div className={`card-gradient relative overflow-hidden rounded-2xl border p-5 shadow-card transition hover:-translate-y-1 ${mine.solvedToday ? "border-green-500/50" : streakInfo.status === "Critical" ? "border-red-500 animate-pulse" : "border-yellow-500/50"}`}>
-          <div className="flex items-center justify-between">
-            <Flame className={`size-5 ${streakInfo.color}`} />
-            {!mine.solvedToday && <Countdown />}
-          </div>
-          <p className="mt-4 text-sm text-muted-foreground">Current Streak</p>
-          <p className="mt-1 text-3xl font-black">{mine.streak} days</p>
-          <p className={`mt-2 text-[10px] font-bold uppercase tracking-wider ${streakInfo.color}`}>
-            {streakInfo.message}
-          </p>
+        <div className="card-gradient rounded-2xl border border-border p-5 shadow-card transition hover:-translate-y-1">
+          <Flame className={`mb-4 size-5 ${streakInfo.color}`} />
+          <p className="text-sm text-muted-foreground">Current Streak</p>
+          <p className="mt-1 text-3xl font-black">{mine.streak}<span className="ml-1 text-base font-bold text-muted-foreground">days</span></p>
         </div>
         <StatCard label="Weekly Progress" value={mine.week} Icon={Activity} />
       </div>
-      
-      <div className="grid gap-6 lg:grid-cols-[1fr_0.7fr]">
-        <div className="space-y-6">
-          <div className="glass-panel rounded-2xl p-5">
-            <h3 className="mb-4 text-xl font-bold">Friend Comparison</h3>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <MutualCard 
-                user={user} 
-                stats={mine} 
-                platformTotal={data.platformConnections
-                  .filter(c => c.account_id === currentAccountId)
-                  .reduce((acc, c) => acc + (c.stats?.totalSolved || 0), 0)
-                }
-                highlight 
-                isOnline={true}
-              />
-              <MutualCard 
-                user={friend} 
-                stats={rival} 
-                platformTotal={data.platformConnections
-                  .filter(c => c.account_id === friendId)
-                  .reduce((acc, c) => acc + (c.stats?.totalSolved || 0), 0)
-                }
-                isOnline={Object.values(presence).flat().some(p => (p as any).id === friend.id)}
-                onTaunt={() => {
-                  supabase.channel("rivals-live").send({
-                    type: "broadcast",
-                    event: "taunt",
-                    payload: { from: user.name, to: friend.id }
-                  });
-                  toast.success("Nudge sent! 🔔", { description: "Hopefully they're paying attention." });
-                }}
-              />
-            </div>
+
+      <div className="glass-panel rounded-2xl p-5">
+        <h3 className="mb-4 text-xl font-bold">Friend Comparison</h3>
+        {hasFriend ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <MutualCard user={user} stats={mine} platformTotal={myPlatformTotal} isOnline={isUserOnline} highlight />
+            <MutualCard user={friend} stats={rival} platformTotal={friendPlatformTotal} isOnline={isFriendOnline} onTaunt={sendNudge} />
           </div>
-          <WeeklyPledge currentAccountId={currentAccountId} stats={mine} />
-        </div>
-        <div className="space-y-6">
-          <SquadActivity data={data} users={users} />
-          <div className="glass-panel rounded-2xl p-5">
-            <h3 className="mb-4 text-xl font-bold">Quick Log Problem</h3>
-            <LogProblem currentAccountId={currentAccountId} data={data} compact onRefresh={onRefresh} />
-          </div>
-        </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Pick a duo from the Profile tab to compare progress and send nudges.</p>
+        )}
       </div>
+
+      <WeeklyPledge currentAccountId={currentAccountId} stats={mine} />
+      <SquadActivity data={data} users={users} />
       <div className="grid gap-6">
-        <Heatmap currentAccountId={currentAccountId} problems={data.problems} />
+        <Heatmap currentAccountId={currentAccountId} problems={data.problems} title={`${user.emoji} ${user.name}'s Contributions`} />
+        {friend.id !== user.id ? (
+          <Heatmap currentAccountId={friend.id} problems={data.problems} title={`${friend.emoji} ${friend.name}'s Contributions (Friend)`} />
+        ) : (
+          <div className="glass-panel rounded-2xl p-5 text-sm text-muted-foreground">
+            Pick a duo from the Profile tab to see your friend's contribution heatmap here.
+          </div>
+        )}
       </div>
-        </>
-      )}
+    </section>
+  );
+}
+
+function TodayTargetView({ currentAccountId, data, users, onRefresh, onSync }: { currentAccountId: string; data: AppData; users: MutualUser[]; onRefresh: () => Promise<void>; onSync: () => Promise<void> }) {
+  const user = users.find((item) => item.id === currentAccountId)!;
+  const [presence, setPresence] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('today_target_presence')
+      .on('presence', { event: 'sync' }, () => {
+        setPresence(channel.presenceState());
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            id: currentAccountId,
+            online_at: new Date().toISOString(),
+            name: user.name
+          });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentAccountId, user.name]);
+
+  useEffect(() => {
+    toast.info("Syncing platform stats...", { icon: <RefreshCw className="animate-spin size-4" />, duration: 2000 });
+    onSync();
+  }, []);
+
+  return (
+    <section className="animate-enter space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-2xl font-black">Today Target</h3>
+        <p className="text-xs text-muted-foreground">Post 4 links and race.</p>
+      </div>
+      <TodayTarget currentAccountId={currentAccountId} users={users} onRefresh={onRefresh} data={data} presence={presence} />
     </section>
   );
 }
@@ -1628,59 +1619,32 @@ function SquadActivity({ data, users }: { data: AppData; users: MutualUser[] }) 
   }, [data.problems]);
 
   return (
-    <div className="glass-panel rounded-2xl p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-xl font-bold">Squad Activity</h3>
+    <div className="glass-panel rounded-xl p-4">
+      <div className="mb-3 flex items-center gap-2">
         <Activity className="size-4 text-primary" />
+        <h3 className="text-sm font-bold">Squad Activity</h3>
       </div>
-      <div className="space-y-4">
-        {recentProblems.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">No activity yet. Go cook! 🔥</p>
-        ) : (
-          recentProblems.map((p, i) => {
+      {recentProblems.length === 0 ? (
+        <p className="py-4 text-center text-xs text-muted-foreground">No activity yet.</p>
+      ) : (
+        <ul className="divide-y divide-border/40">
+          {recentProblems.map((p, i) => {
             const user = users.find(u => u.id === p.accountId);
             return (
-              <div key={i} className="flex items-center gap-3 border-b border-border/50 pb-3 last:border-0 last:pb-0">
-                <div className="text-2xl">{user?.emoji || "👤"}</div>
-                <div className="flex-1 overflow-hidden">
-                  <p className="text-sm font-bold truncate">
-                    <span className="text-primary">{user?.name || "Someone"}</span> solved {p.name}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground capitalize">
-                    {p.platform} · {new Date(p.solvedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-              </div>
+              <li key={i} className="flex items-center gap-3 py-2 text-sm">
+                <span className="text-base shrink-0">{user?.emoji || "👤"}</span>
+                <span className="flex-1 truncate">
+                  <span className="font-semibold text-primary">{user?.name || "Someone"}</span>
+                  <span className="text-muted-foreground"> · {p.name}</span>
+                </span>
+                <span className="text-[10px] text-muted-foreground shrink-0">
+                  {new Date(p.solvedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </li>
             );
-          })
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Countdown() {
-  const [timeLeft, setTimeLeft] = useState("");
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const now = new Date();
-      const end = new Date();
-      end.setHours(23, 59, 59, 999);
-      const diff = end.getTime() - now.getTime();
-      
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const secs = Math.floor((diff % (1000 * 60)) / 1000);
-      
-      setTimeLeft(`${hours}h ${mins}m ${secs}s`);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  return (
-    <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded-full">
-      <Activity className="size-3" /> {timeLeft} left
+          })}
+        </ul>
+      )}
     </div>
   );
 }
@@ -2084,7 +2048,7 @@ function Select({ value, options, onChange }: { value: string; options: string[]
   return <select value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30">{options.map((option) => <option key={option}>{option}</option>)}</select>;
 }
 
-function Heatmap({ currentAccountId, problems }: { currentAccountId: string; problems: Problem[] }) {
+function Heatmap({ currentAccountId, problems, title = "Contribution Heatmap" }: { currentAccountId: string; problems: Problem[]; title?: string }) {
   const mine = useMemo(
     () => problems.filter((problem) => problem.accountId === currentAccountId),
     [problems, currentAccountId],
@@ -2188,7 +2152,7 @@ function Heatmap({ currentAccountId, problems }: { currentAccountId: string; pro
   return (
     <div className="glass-panel rounded-2xl p-5">
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h3 className="text-xl font-bold">Contribution Heatmap</h3>
+        <h3 className="text-xl font-bold">{title}</h3>
         <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
           <span>Less</span>
           <span className="gh-heat-square gh-heat-0" aria-hidden />
@@ -2445,51 +2409,36 @@ function WeeklyPledge({ currentAccountId, stats }: { currentAccountId: string; s
   };
 
   return (
-    <div className="glass-panel rounded-2xl p-5 border-l-4 border-l-accent">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold flex items-center gap-2">
-          <ShieldCheck className="size-5 text-accent" /> Weekly Pledge
-        </h3>
+    <div className="glass-panel rounded-xl p-4 border-l-2 border-l-accent">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <ShieldCheck className="size-4 text-accent shrink-0" />
+          <span className="text-sm font-bold">Weekly Pledge</span>
+        </div>
         {isEditing ? (
-          <button onClick={save} className="text-xs font-bold text-primary hover:underline">SAVE COMMITMENT</button>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              value={pledge}
+              onChange={(e) => setPledge(e.target.value)}
+              className="h-7 w-14 rounded-md border border-input bg-background/70 px-2 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <button onClick={save} className="text-xs font-bold text-primary hover:underline">Save</button>
+          </div>
         ) : (
-          <button onClick={() => setIsEditing(true)} className="text-xs font-bold text-muted-foreground hover:text-foreground">EDIT PLEDGE</button>
+          <div className="flex items-center gap-3 text-sm">
+            <span className="font-black">{stats.week}/{pledge}</span>
+            <span className="text-xs font-bold text-accent">{Math.round(progress)}%</span>
+            <button onClick={() => setIsEditing(true)} className="text-xs text-muted-foreground hover:text-foreground">Edit</button>
+          </div>
         )}
       </div>
-      
-      {isEditing ? (
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">How many problems will you solve this week?</p>
-          <input 
-            type="number" 
-            value={pledge} 
-            onChange={(e) => setPledge(e.target.value)}
-            className="w-full h-11 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex justify-between items-end">
-            <div>
-              <p className="text-sm text-muted-foreground uppercase font-bold tracking-tighter">Your Commitment</p>
-              <p className="text-2xl font-black">{stats.week} / {pledge} problems</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-bold text-accent">{Math.round(progress)}%</p>
-              <p className="text-[10px] text-muted-foreground uppercase">of target</p>
-            </div>
-          </div>
-          <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
-            <div 
-              className={`h-full transition-all duration-1000 ${progress >= 100 ? "bg-green-500" : "bg-accent"}`} 
-              style={{ width: `${Math.min(100, progress)}%` }} 
-            />
-          </div>
-          <p className="text-xs italic text-muted-foreground">
-            {progress >= 100 ? "✅ Pledge fulfilled! Bragging rights unlocked." : `🔥 You need ${Math.max(0, target - stats.week)} more by Sunday.`}
-          </p>
-        </div>
-      )}
+      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className={`h-full transition-all duration-1000 ${progress >= 100 ? "bg-green-500" : "bg-accent"}`}
+          style={{ width: `${Math.min(100, progress)}%` }}
+        />
+      </div>
     </div>
   );
 }
@@ -3307,10 +3256,671 @@ function DifficultyBar({ label, solved, total, color }: { label: string; solved:
   );
 }
 
+type FocusMode = "focus" | "break" | "longBreak";
+type FocusSession = {
+  type: "focus" | "break";
+  startedAt: string;
+  durationSec: number;
+  completed: boolean;
+  task?: string;
+  plannedSec?: number;
+  isLongBreak?: boolean;
+};
+type FocusSettings = {
+  focusMin: number;
+  breakMin: number;
+  longBreakMin: number;
+  longBreakEvery: number;
+  autoStartNext: boolean;
+  dailyGoalMin: number;
+  soundEnabled: boolean;
+  notificationsEnabled: boolean;
+};
+
+const FOCUS_DEFAULTS: FocusSettings = {
+  focusMin: 25,
+  breakMin: 5,
+  longBreakMin: 15,
+  longBreakEvery: 4,
+  autoStartNext: false,
+  dailyGoalMin: 120,
+  soundEnabled: true,
+  notificationsEnabled: false,
+};
+
+function focusSettingsKey(id: string) { return `focus_settings_${id}`; }
+function focusSessionsKey(id: string) { return `focus_sessions_${id}`; }
+function focusTaskKey(id: string) { return `focus_current_task_${id}`; }
+
+function loadFocusSettings(accountId: string): FocusSettings {
+  if (typeof window === "undefined") return FOCUS_DEFAULTS;
+  try {
+    const raw = localStorage.getItem(focusSettingsKey(accountId));
+    if (raw) return { ...FOCUS_DEFAULTS, ...JSON.parse(raw) };
+  } catch {}
+  return FOCUS_DEFAULTS;
+}
+
+function loadFocusSessions(accountId: string): FocusSession[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(focusSessionsKey(accountId));
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [];
+}
+
+function appendFocusSession(accountId: string, session: FocusSession) {
+  const all = loadFocusSessions(accountId);
+  all.push(session);
+  localStorage.setItem(focusSessionsKey(accountId), JSON.stringify(all));
+}
+
+function playFocusChime() {
+  try {
+    const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    [880, 1320].forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = freq;
+      o.connect(g); g.connect(ctx.destination);
+      const t0 = ctx.currentTime + i * 0.18;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.3, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.45);
+      o.start(t0); o.stop(t0 + 0.5);
+    });
+    setTimeout(() => ctx.close(), 900);
+  } catch {}
+}
+
+function notifyFocus(title: string, body: string) {
+  try {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission === "granted") new Notification(title, { body, silent: true });
+  } catch {}
+}
+
+function fmtDuration(sec: number) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function relativeTime(iso: string) {
+  const ms = Date.now() - new Date(iso).getTime();
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  return `${day}d ago`;
+}
+
+function FocusTodo({ currentAccountId }: { currentAccountId: string }) {
+  const [settings, setSettings] = useState<FocusSettings>(() => loadFocusSettings(currentAccountId));
+  const [task, setTask] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem(focusTaskKey(currentAccountId)) ?? "";
+  });
+  const [mode, setMode] = useState<FocusMode>("focus");
+  const [pomos, setPomos] = useState(0);
+  const [running, setRunning] = useState(false);
+  const [accumSec, setAccumSec] = useState(0);
+  const [now, setNow] = useState<number>(() => Date.now());
+  const [todayFocusSec, setTodayFocusSec] = useState(0);
+  const [todayCompletedCount, setTodayCompletedCount] = useState(0);
+  const [showSettings, setShowSettings] = useState(false);
+
+  const runStartRef = useRef<number | null>(null);
+  const sessionStartRef = useRef<number | null>(null);
+  const completedRef = useRef(false);
+  const titleRef = useRef<string>("");
+
+  useEffect(() => {
+    localStorage.setItem(focusSettingsKey(currentAccountId), JSON.stringify(settings));
+  }, [settings, currentAccountId]);
+
+  useEffect(() => {
+    localStorage.setItem(focusTaskKey(currentAccountId), task);
+  }, [task, currentAccountId]);
+
+  // recompute today's totals from log
+  const refreshTodayTotals = () => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const sessions = loadFocusSessions(currentAccountId);
+    const focus = sessions.filter(s => s.type === "focus" && new Date(s.startedAt) >= today);
+    setTodayFocusSec(focus.reduce((a, s) => a + s.durationSec, 0));
+    setTodayCompletedCount(focus.filter(s => s.completed).length);
+  };
+
+  useEffect(() => { refreshTodayTotals(); }, [currentAccountId]);
+
+  useEffect(() => {
+    titleRef.current = document.title || "Code Rivals";
+    return () => { document.title = titleRef.current; };
+  }, []);
+
+  useEffect(() => {
+    if (!running) return;
+    const id = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(id);
+  }, [running]);
+
+  const planned = (mode === "focus" ? settings.focusMin : mode === "longBreak" ? settings.longBreakMin : settings.breakMin) * 60;
+  const segmentSec = running && runStartRef.current !== null ? Math.max(0, Math.floor((now - runStartRef.current) / 1000)) : 0;
+  const elapsed = accumSec + segmentSec;
+  const remaining = Math.max(0, planned - elapsed);
+  const pct = planned > 0 ? Math.min(100, (elapsed / planned) * 100) : 0;
+  const liveTodayFocusSec = todayFocusSec + (mode === "focus" ? elapsed : 0);
+  const goalSec = settings.dailyGoalMin * 60;
+  const goalPct = goalSec > 0 ? Math.min(100, (liveTodayFocusSec / goalSec) * 100) : 0;
+  const sessionInProgress = sessionStartRef.current !== null;
+
+  // Tab title live countdown
+  useEffect(() => {
+    if (!sessionInProgress && !running) {
+      document.title = titleRef.current;
+      return;
+    }
+    const mm = Math.floor(remaining / 60).toString().padStart(2, "0");
+    const ss = (remaining % 60).toString().padStart(2, "0");
+    const icon = mode === "focus" ? "🎯" : mode === "longBreak" ? "🌴" : "☕";
+    const label = mode === "focus" ? (task.trim() || "Focus") : mode === "longBreak" ? "Long Break" : "Break";
+    document.title = `${running ? "" : "⏸ "}${mm}:${ss} ${icon} ${label.slice(0, 28)}`;
+  }, [running, mode, task, remaining, sessionInProgress]);
+
+  // commit + advance helper. completed=true means full duration reached.
+  const commitAndAdvance = (commitSec: number, completed: boolean): { nextMode: FocusMode; nextPomos: number } => {
+    const wasFocus = mode === "focus";
+    const sessionStartIso = sessionStartRef.current !== null
+      ? new Date(sessionStartRef.current).toISOString()
+      : new Date().toISOString();
+
+    if (commitSec > 0) {
+      appendFocusSession(currentAccountId, {
+        type: wasFocus ? "focus" : "break",
+        startedAt: sessionStartIso,
+        durationSec: commitSec,
+        completed,
+        plannedSec: planned,
+        task: wasFocus ? (task.trim() || undefined) : undefined,
+        isLongBreak: mode === "longBreak" ? true : undefined,
+      });
+    }
+
+    let nextMode: FocusMode = "focus";
+    let nextPomos = pomos;
+    if (wasFocus && completed) {
+      nextPomos = pomos + 1;
+      if (nextPomos >= settings.longBreakEvery) {
+        nextMode = "longBreak";
+        nextPomos = 0;
+      } else {
+        nextMode = "break";
+      }
+    } else if (!wasFocus) {
+      nextMode = "focus";
+    } else {
+      nextMode = "focus"; // stopped focus early — stay in focus mode
+    }
+
+    refreshTodayTotals();
+    return { nextMode, nextPomos };
+  };
+
+  // Auto-complete when timer hits zero
+  useEffect(() => {
+    if (!running || completedRef.current) return;
+    if (elapsed < planned) return;
+    completedRef.current = true;
+
+    const wasFocus = mode === "focus";
+    const { nextMode, nextPomos } = commitAndAdvance(planned, true);
+
+    if (settings.soundEnabled) playFocusChime();
+    if (settings.notificationsEnabled) {
+      notifyFocus(
+        wasFocus ? "Focus complete" : "Break over",
+        wasFocus
+          ? (nextMode === "longBreak" ? "Long break time — you earned it." : "Take a short break.")
+          : "Back to focus."
+      );
+    }
+    toast.success(
+      wasFocus
+        ? (nextMode === "longBreak" ? "Long break time! 🌴" : "Take a quick break ☕")
+        : "Break done — let's go 🚀"
+    );
+
+    runStartRef.current = null;
+    sessionStartRef.current = null;
+    setAccumSec(0);
+    setMode(nextMode);
+    setPomos(nextPomos);
+
+    if (settings.autoStartNext) {
+      const t = Date.now();
+      sessionStartRef.current = t;
+      runStartRef.current = t;
+      completedRef.current = false;
+      // running stays true — re-arm tick
+    } else {
+      setRunning(false);
+    }
+  }, [elapsed, planned, running]);
+
+  const start = async () => {
+    if (settings.notificationsEnabled && typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      try { await Notification.requestPermission(); } catch {}
+    }
+    const t = Date.now();
+    if (sessionStartRef.current === null) sessionStartRef.current = t;
+    runStartRef.current = t;
+    completedRef.current = false;
+    setRunning(true);
+  };
+
+  const pause = () => {
+    if (running && runStartRef.current !== null) {
+      const segment = Math.max(0, Math.floor((Date.now() - runStartRef.current) / 1000));
+      setAccumSec(s => s + segment);
+      runStartRef.current = null;
+    }
+    setRunning(false);
+  };
+
+  const stop = () => {
+    let segment = 0;
+    if (running && runStartRef.current !== null) {
+      segment = Math.max(0, Math.floor((Date.now() - runStartRef.current) / 1000));
+    }
+    const finalElapsed = accumSec + segment;
+
+    if (finalElapsed > 60) {
+      const minsTxt = `${Math.floor(finalElapsed / 60)}m ${finalElapsed % 60}s`;
+      const ok = window.confirm(`Stop and log ${minsTxt} of ${mode === "focus" ? "focus" : "break"} time to today?`);
+      if (!ok) return;
+    }
+
+    if (finalElapsed > 0 && sessionStartRef.current !== null) {
+      commitAndAdvance(finalElapsed, false);
+      toast.success(`Logged ${fmtDuration(finalElapsed)} to today's total`);
+    }
+
+    runStartRef.current = null;
+    sessionStartRef.current = null;
+    setAccumSec(0);
+    setRunning(false);
+    completedRef.current = false;
+  };
+
+  const skipBreak = () => {
+    let segment = 0;
+    if (running && runStartRef.current !== null) {
+      segment = Math.max(0, Math.floor((Date.now() - runStartRef.current) / 1000));
+    }
+    const finalElapsed = accumSec + segment;
+    if (finalElapsed > 0 && sessionStartRef.current !== null) {
+      commitAndAdvance(finalElapsed, false);
+    }
+    runStartRef.current = null;
+    sessionStartRef.current = null;
+    setAccumSec(0);
+    setRunning(false);
+    setMode("focus");
+    completedRef.current = false;
+    toast.message("Break skipped — back to focus");
+  };
+
+  const switchMode = (next: FocusMode) => {
+    if (sessionInProgress) {
+      const ok = window.confirm("Switch mode and discard current session progress?");
+      if (!ok) return;
+    }
+    runStartRef.current = null;
+    sessionStartRef.current = null;
+    setAccumSec(0);
+    setRunning(false);
+    completedRef.current = false;
+    setMode(next);
+  };
+
+  const mm = Math.floor(remaining / 60).toString().padStart(2, "0");
+  const ss = (remaining % 60).toString().padStart(2, "0");
+  const circumference = 2 * Math.PI * 45;
+  const settingsLocked = sessionInProgress;
+
+  return (
+    <section className="animate-enter space-y-6">
+      <div className="glass-panel rounded-2xl p-6">
+        <div className="mb-5 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+          <div>
+            <h3 className="flex items-center gap-2 text-2xl font-black"><Timer className="size-6 text-primary" /> FocusTodo</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{mode === "focus" ? "Deep work — eyes on the prize." : mode === "longBreak" ? "Long break — stretch, walk, breathe." : "Short break — recover."}</p>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => switchMode("focus")} className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${mode === "focus" ? "bg-primary text-primary-foreground shadow-glow" : "bg-secondary text-muted-foreground hover:text-foreground"}`}><Timer className="mr-1 inline size-3.5" />Focus</button>
+            <button type="button" onClick={() => switchMode("break")} className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${mode === "break" ? "bg-primary text-primary-foreground shadow-glow" : "bg-secondary text-muted-foreground hover:text-foreground"}`}><Coffee className="mr-1 inline size-3.5" />Break</button>
+            <button type="button" onClick={() => switchMode("longBreak")} className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${mode === "longBreak" ? "bg-primary text-primary-foreground shadow-glow" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>🌴 Long</button>
+          </div>
+        </div>
+
+        {mode === "focus" && (
+          <div className="mb-4">
+            <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">What are you working on?</label>
+            <input
+              value={task}
+              onChange={(e) => setTask(e.target.value)}
+              placeholder="e.g. LeetCode 200 Number of Islands"
+              className="mt-1 h-11 w-full rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+        )}
+
+        <div className="flex flex-col items-center py-4">
+          <div className="relative size-64 sm:size-72">
+            <svg className="size-full -rotate-90" viewBox="0 0 100 100" aria-hidden>
+              <circle cx="50" cy="50" r="45" stroke="hsl(var(--secondary))" strokeWidth="6" fill="none" />
+              <circle cx="50" cy="50" r="45" stroke={mode === "focus" ? "hsl(var(--primary))" : "hsl(var(--accent))"} strokeWidth="6" fill="none" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - pct / 100)} style={{ transition: "stroke-dashoffset 0.4s linear" }} />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-6xl font-black tabular-nums">{mm}:{ss}</span>
+              <span className="mt-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                {mode === "focus" ? "Focus" : mode === "longBreak" ? "Long Break" : "Break"} · {Math.round(pct)}%
+              </span>
+            </div>
+          </div>
+
+          {/* Pomodoro cycle dots */}
+          <div className="mt-4 flex items-center gap-1.5" aria-label="Pomodoro cycle progress">
+            {Array.from({ length: settings.longBreakEvery }).map((_, i) => (
+              <span key={i} className={`size-2.5 rounded-full transition ${i < pomos ? "bg-primary" : "bg-secondary"}`} />
+            ))}
+            <span className="ml-2 text-xs text-muted-foreground">{pomos}/{settings.longBreakEvery} until long break</span>
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            {!running ? (
+              <Button variant="rival" onClick={start}><Play /> {sessionInProgress ? "Resume" : "Start"}</Button>
+            ) : (
+              <Button variant="secondary" onClick={pause}><Pause /> Pause</Button>
+            )}
+            <Button variant="ghost" onClick={stop} disabled={!sessionInProgress && elapsed === 0}><ShieldCheck /> Stop &amp; Log</Button>
+            {(mode === "break" || mode === "longBreak") && sessionInProgress && (
+              <Button variant="ghost" onClick={skipBreak}>Skip Break</Button>
+            )}
+          </div>
+        </div>
+
+        {/* Daily goal progress */}
+        <div className="mt-2 rounded-xl border border-border bg-card/70 p-4">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-semibold">Today's focus goal</span>
+            <span className="tabular-nums text-muted-foreground">{fmtDuration(liveTodayFocusSec)} / {settings.dailyGoalMin}m · {todayCompletedCount} session{todayCompletedCount === 1 ? "" : "s"}</span>
+          </div>
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${goalPct}%` }} />
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowSettings(s => !s)}
+          className="mt-5 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground"
+        >
+          {showSettings ? "▼ Hide settings" : "▶ Show settings"}
+        </button>
+
+        {showSettings && (
+          <div className="mt-3 grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Focus (min)</label>
+              <input type="number" min={1} max={180} value={settings.focusMin} disabled={settingsLocked} onChange={(e) => setSettings(s => ({ ...s, focusMin: Math.max(1, Math.min(180, Number(e.target.value) || 1)) }))} className="mt-1 h-11 w-full rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50" />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Short break (min)</label>
+              <input type="number" min={1} max={60} value={settings.breakMin} disabled={settingsLocked} onChange={(e) => setSettings(s => ({ ...s, breakMin: Math.max(1, Math.min(60, Number(e.target.value) || 1)) }))} className="mt-1 h-11 w-full rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50" />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Long break (min)</label>
+              <input type="number" min={1} max={120} value={settings.longBreakMin} disabled={settingsLocked} onChange={(e) => setSettings(s => ({ ...s, longBreakMin: Math.max(1, Math.min(120, Number(e.target.value) || 1)) }))} className="mt-1 h-11 w-full rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50" />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Long break every N focus</label>
+              <input type="number" min={2} max={10} value={settings.longBreakEvery} disabled={settingsLocked} onChange={(e) => setSettings(s => ({ ...s, longBreakEvery: Math.max(2, Math.min(10, Number(e.target.value) || 4)) }))} className="mt-1 h-11 w-full rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50" />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Daily goal (min)</label>
+              <input type="number" min={5} max={1000} value={settings.dailyGoalMin} onChange={(e) => setSettings(s => ({ ...s, dailyGoalMin: Math.max(5, Math.min(1000, Number(e.target.value) || 120)) }))} className="mt-1 h-11 w-full rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" />
+            </div>
+            <div className="flex flex-col gap-2 pt-1">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={settings.autoStartNext} onChange={(e) => setSettings(s => ({ ...s, autoStartNext: e.target.checked }))} className="size-4 rounded border-input" />
+                Auto-start next session
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={settings.soundEnabled} onChange={(e) => setSettings(s => ({ ...s, soundEnabled: e.target.checked }))} className="size-4 rounded border-input" />
+                Play chime on completion
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={settings.notificationsEnabled}
+                  onChange={async (e) => {
+                    const enabled = e.target.checked;
+                    if (enabled && typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+                      try {
+                        const perm = await Notification.requestPermission();
+                        if (perm !== "granted") { toast.error("Browser blocked notifications"); return; }
+                      } catch {}
+                    }
+                    setSettings(s => ({ ...s, notificationsEnabled: enabled }));
+                  }}
+                  className="size-4 rounded border-input"
+                />
+                Browser notifications on completion
+              </label>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function FocusAnalytics({ currentAccountId }: { currentAccountId: string }) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTick(t => t + 1), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const settings = useMemo(() => loadFocusSettings(currentAccountId), [currentAccountId, tick]);
+
+  const { todaySec, weekSec, totalSec, completedCount, avgMin, longestMin, streak, chartData, hasData, topTasks, recentSessions, bestDayMin, completionRate } = useMemo(() => {
+    const sessions = loadFocusSessions(currentAccountId);
+    const focus = sessions.filter(s => s.type === "focus");
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const weekStart = new Date(today); weekStart.setDate(weekStart.getDate() - 6);
+    const monthStart = new Date(today); monthStart.setDate(monthStart.getDate() - 29);
+
+    const todaySec = focus.filter(s => new Date(s.startedAt) >= today).reduce((a, s) => a + s.durationSec, 0);
+    const weekSec = focus.filter(s => new Date(s.startedAt) >= weekStart).reduce((a, s) => a + s.durationSec, 0);
+    const totalSec = focus.reduce((a, s) => a + s.durationSec, 0);
+    const completedCount = focus.filter(s => s.completed).length;
+    const longestMin = focus.length ? Math.round(focus.reduce((m, s) => Math.max(m, s.durationSec), 0) / 60) : 0;
+    const avgMin = focus.length ? Math.round(totalSec / focus.length / 60) : 0;
+    const completionRate = focus.length ? Math.round((completedCount / focus.length) * 100) : 0;
+
+    const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    const dayMap = new Map<string, number>();
+    for (const s of focus) {
+      const d = new Date(s.startedAt);
+      dayMap.set(dayKey(d), (dayMap.get(dayKey(d)) ?? 0) + s.durationSec);
+    }
+
+    const chartData = Array.from({ length: 14 }).map((_, i) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - (13 - i));
+      return {
+        date: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        minutes: Math.round((dayMap.get(dayKey(d)) ?? 0) / 60),
+      };
+    });
+
+    const bestDayMin = Math.max(0, ...Array.from(dayMap.values()).map(s => Math.round(s / 60)));
+
+    let streak = 0;
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      if ((dayMap.get(dayKey(d)) ?? 0) > 0) streak++;
+      else break;
+    }
+
+    // Top tasks (last 30 days)
+    const taskMap = new Map<string, number>();
+    for (const s of focus) {
+      if (!s.task) continue;
+      if (new Date(s.startedAt) < monthStart) continue;
+      const k = s.task.trim();
+      if (!k) continue;
+      taskMap.set(k, (taskMap.get(k) ?? 0) + s.durationSec);
+    }
+    const topTasks = Array.from(taskMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([task, sec]) => ({ task, sec }));
+
+    const recentSessions = [...sessions]
+      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+      .slice(0, 10);
+
+    return { todaySec, weekSec, totalSec, completedCount, avgMin, longestMin, streak, chartData, hasData: focus.length > 0, topTasks, recentSessions, bestDayMin, completionRate };
+  }, [currentAccountId, tick]);
+
+  const goalSec = settings.dailyGoalMin * 60;
+  const goalPct = goalSec > 0 ? Math.min(100, (todaySec / goalSec) * 100) : 0;
+  const topTaskMaxSec = topTasks[0]?.sec ?? 1;
+
+  return (
+    <section className="animate-enter space-y-6">
+      <div>
+        <h3 className="flex items-center gap-2 text-2xl font-black"><BarChart3 className="size-6 text-primary" /> Focus Analytics</h3>
+        <p className="mt-1 text-sm text-muted-foreground">Deep-work time, sessions, streaks, and what you've been working on.</p>
+      </div>
+
+      {/* Daily goal */}
+      <div className="glass-panel rounded-2xl p-5">
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-bold">Today's goal</span>
+          <span className="tabular-nums text-muted-foreground">{fmtDuration(todaySec)} / {settings.dailyGoalMin}m · {Math.round(goalPct)}%</span>
+        </div>
+        <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-secondary">
+          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${goalPct}%` }} />
+        </div>
+        {goalPct >= 100 && <p className="mt-2 text-xs font-bold text-primary">Goal hit — nice work 🔥</p>}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <StatCard label="Today" value={fmtDuration(todaySec)} Icon={Zap} />
+        <StatCard label="This Week" value={fmtDuration(weekSec)} Icon={Activity} />
+        <StatCard label="All Time" value={fmtDuration(totalSec)} Icon={Trophy} />
+        <StatCard label="Day Streak" value={`${streak}`} Icon={Flame} />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <StatCard label="Sessions Completed" value={`${completedCount}`} Icon={CheckCircle2} />
+        <StatCard label="Avg Session" value={`${avgMin}m`} Icon={Timer} />
+        <StatCard label="Longest Session" value={`${longestMin}m`} Icon={Medal} />
+        <StatCard label="Completion Rate" value={`${completionRate}%`} Icon={Target} />
+      </div>
+
+      <div className="glass-panel rounded-2xl p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h4 className="text-xl font-bold">Last 14 Days</h4>
+          {bestDayMin > 0 && <span className="text-xs text-muted-foreground">Best day: {bestDayMin}m</span>}
+        </div>
+        {!hasData ? (
+          <p className="text-sm text-muted-foreground">No focus sessions yet — start one in the FocusTodo tab.</p>
+        ) : (
+          <ChartContainer config={{ minutes: { label: "Focus Minutes", color: "hsl(var(--primary))" } }} className="h-64 w-full">
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="minutes" fill="var(--color-minutes)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ChartContainer>
+        )}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="glass-panel rounded-2xl p-5">
+          <h4 className="mb-4 text-xl font-bold">Top Tasks · Last 30 Days</h4>
+          {topTasks.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Tag your focus sessions with a task name to see what's eating the most time.</p>
+          ) : (
+            <ul className="space-y-3">
+              {topTasks.map(({ task, sec }) => (
+                <li key={task}>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="truncate pr-3 font-semibold">{task}</span>
+                    <span className="tabular-nums text-muted-foreground">{fmtDuration(sec)}</span>
+                  </div>
+                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${(sec / topTaskMaxSec) * 100}%` }} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="glass-panel rounded-2xl p-5">
+          <h4 className="mb-4 text-xl font-bold">Recent Sessions</h4>
+          {recentSessions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No sessions logged yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {recentSessions.map((s, i) => (
+                <li key={i} className="flex items-center justify-between rounded-lg bg-card/70 px-3 py-2 text-sm">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className={`size-2 shrink-0 rounded-full ${s.type === "focus" ? "bg-primary" : "bg-accent"}`} />
+                    <span className="truncate font-semibold">
+                      {s.type === "focus" ? (s.task || "Focus") : (s.isLongBreak ? "Long Break" : "Break")}
+                    </span>
+                    {!s.completed && <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-bold uppercase text-muted-foreground">stopped</span>}
+                  </div>
+                  <div className="ml-3 flex shrink-0 items-center gap-3 text-xs text-muted-foreground tabular-nums">
+                    <span>{fmtDuration(s.durationSec)}</span>
+                    <span>{relativeTime(s.startedAt)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Profile({ currentAccountId, profiles, users, problems, onRefresh, onLogout }: { currentAccountId: string; profiles: ProfileType[]; users: MutualUser[]; problems: Problem[]; onRefresh: () => Promise<void>; onLogout: () => void }) {
   const profile = profiles.find((item) => item.account_id === currentAccountId)!;
   const user = mapUser(profile, problems);
   const stats = userStats(problems, currentAccountId);
+  const duoId = profile.rival_user_id ?? null;
+  const duo = duoId ? users.find((item) => item.id === duoId) ?? null : null;
   const [mutualUsername, setMutualUsername] = useState(users.find((item) => item.id === profile.rival_user_id)?.username ?? "");
   const [resetting, setResetting] = useState(false);
 
@@ -3350,7 +3960,7 @@ function Profile({ currentAccountId, profiles, users, problems, onRefresh, onLog
     }
   };
 
-  return <section className="glass-panel animate-enter rounded-2xl p-6"><div className="text-7xl">{user.emoji}</div><h3 className="mt-4 text-3xl font-black">{user.name}</h3><p className="text-primary">@{user.username} · {user.title}</p><div className="mt-6 grid gap-4 sm:grid-cols-4"><StatCard label="Solved" value={stats.total} Icon={Medal} /><StatCard label="This Week" value={stats.week} Icon={ListFilter} /><StatCard label="Hard Wins" value={stats.hard} Icon={Swords} /><StatCard label="Minutes" value={stats.minutes} Icon={Activity} /></div><div className="mt-6 rounded-xl border border-border bg-card/70 p-4"><h4 className="font-bold">Choose your main duo</h4><p className="mt-1 text-sm text-muted-foreground">Enter a mutual's username to compare directly.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={mutualUsername} onChange={(e) => setMutualUsername(e.target.value)} className="h-11 flex-1 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="mutual_username" /><Button type="button" variant="rival" onClick={saveMutual}>Save Mutual</Button></div></div><div className="mt-10 pt-6 border-t border-destructive/20"><h4 className="text-destructive font-bold">Danger Zone</h4><p className="mt-1 text-sm text-muted-foreground">Resetting your data will permanently delete your account and all progress.</p><Button type="button" variant="destructive" className="mt-4" onClick={handleReset} disabled={resetting}>{resetting ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Reset All Data</Button></div></section>;
+  return <section className="glass-panel animate-enter rounded-2xl p-6"><div className="text-7xl">{user.emoji}</div><h3 className="mt-4 text-3xl font-black">{user.name}</h3><p className="text-primary">@{user.username} · {user.title}</p><div className="mt-6 grid gap-4 sm:grid-cols-4"><StatCard label="Solved" value={stats.total} Icon={Medal} /><StatCard label="This Week" value={stats.week} Icon={ListFilter} /><StatCard label="Hard Wins" value={stats.hard} Icon={Swords} /><StatCard label="Minutes" value={stats.minutes} Icon={Activity} /></div><div className="mt-6 rounded-xl border border-border bg-card/70 p-4"><h4 className="font-bold">Choose your main duo</h4><p className="mt-1 text-sm text-muted-foreground">Enter a mutual's username to compare directly.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={mutualUsername} onChange={(e) => setMutualUsername(e.target.value)} className="h-11 flex-1 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="mutual_username" /><Button type="button" variant="rival" onClick={saveMutual}>Save Mutual</Button></div></div><div className="mt-6 space-y-4">{duo ? <Heatmap currentAccountId={duo.id} problems={problems} title={`${duo.emoji} ${duo.name}'s Contributions`} /> : <div className="glass-panel rounded-2xl p-5 text-sm text-muted-foreground">Set a duo above to see their contribution heatmap.</div>}<Heatmap currentAccountId={currentAccountId} problems={problems} title={`${user.emoji} ${user.name}'s Contributions`} /></div><div className="mt-10 pt-6 border-t border-destructive/20"><h4 className="text-destructive font-bold">Danger Zone</h4><p className="mt-1 text-sm text-muted-foreground">Resetting your data will permanently delete your account and all progress.</p><Button type="button" variant="destructive" className="mt-4" onClick={handleReset} disabled={resetting}>{resetting ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Reset All Data</Button></div></section>;
 }
 
 function SquadRequests({ currentAccountId, users, onRefresh }: { currentAccountId: string; users: MutualUser[]; onRefresh: () => Promise<void> }) {
