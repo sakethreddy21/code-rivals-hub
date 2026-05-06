@@ -13,6 +13,7 @@ import {
   ListFilter,
   Loader2,
   CheckCircle2,
+  Clock,
   LogOut,
   Medal,
   Pause,
@@ -104,9 +105,14 @@ export default function Page() {
     }
   };
 
-  // Auto-sync platform connections in the background
-  const syncPlatformConnections = async (appData: AppData, accountId: string) => {
-    const myConnections = appData.platformConnections.filter((c) => c.account_id === accountId);
+  // Auto-sync external platform stats (LeetCode/GFG). Supabase realtime covers
+  // the rest of the app data, so we only poll the things that have no push channel.
+  const syncPlatformConnections = async (accountId: string) => {
+    const { data: connections } = await supabase
+      .from("platform_connections" as any)
+      .select("*")
+      .eq("account_id", accountId);
+    const myConnections = (connections ?? []) as any as PlatformConnection[];
     if (!myConnections.length) return;
 
     let updated = false;
@@ -119,7 +125,6 @@ export default function Page() {
         if (!res.ok) continue;
         const stats = await res.json();
 
-        // Only update if data actually changed
         const oldTotal = (conn.stats as any)?.totalSolved ?? 0;
         if (stats.totalSolved !== oldTotal || !conn.stats) {
           await supabase
@@ -141,28 +146,16 @@ export default function Page() {
     if (currentAccountId) refresh();
   }, [currentAccountId]);
 
-  // Background auto-sync: sync on load + every 30 seconds
+  // Periodic platform-stats refresh (external APIs — no realtime channel).
   useEffect(() => {
     if (!currentAccountId) return;
 
-    // Initial sync after a short delay (let the main data load first)
-    const initialTimer = setTimeout(async () => {
-      const freshData = await loadAppData().catch(() => null);
-      if (freshData) {
-        setData(freshData);
-        syncPlatformConnections(freshData, currentAccountId);
-      }
+    const initialTimer = setTimeout(() => {
+      syncPlatformConnections(currentAccountId);
     }, 2000);
 
-    // Background polling every 30 seconds
-    const interval = setInterval(async () => {
-      try {
-        const freshData = await loadAppData();
-        setData(freshData);
-        syncPlatformConnections(freshData, currentAccountId);
-      } catch {
-        // Silent fail on background sync
-      }
+    const interval = setInterval(() => {
+      syncPlatformConnections(currentAccountId);
     }, 30000);
 
     return () => {
@@ -237,7 +230,7 @@ export default function Page() {
     currentAccountId={currentAccountId} 
     data={data} 
     onRefresh={refresh} 
-    onSync={() => syncPlatformConnections(data, currentAccountId)}
+    onSync={() => syncPlatformConnections(currentAccountId)}
     onLogout={() => setCurrentAccountId(null)} 
   />;
 }
@@ -513,7 +506,6 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
       </div>
 
       <WeeklyPledge currentAccountId={currentAccountId} stats={mine} />
-      <SquadActivity data={data} users={users} />
       <div className="grid gap-6">
         <Heatmap currentAccountId={currentAccountId} problems={data.problems} title={`${user.emoji} ${user.name}'s Contributions`} />
         {friend.id !== user.id ? (
@@ -524,13 +516,101 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
           </div>
         )}
       </div>
+      <SquadActivity data={data} users={users} />
     </section>
+  );
+}
+
+function FocusClock({ pct, mm, ss, mode, running }: { pct: number; mm: string; ss: string; mode: FocusMode; running: boolean }) {
+  const ringR = 132;
+  const ringC = 2 * Math.PI * ringR;
+  const clamped = Math.max(0, Math.min(100, pct));
+  const ringDash = ringC * (clamped / 100);
+
+  const isFocus = mode === "focus";
+  const accent = isFocus ? "oklch(0.74 0.18 151.1)" : "oklch(0.75 0.17 58.5)";
+  const accentGlow = isFocus ? "oklch(0.74 0.18 151.1 / 0.4)" : "oklch(0.75 0.17 58.5 / 0.4)";
+
+  return (
+    <div className="relative size-64 sm:size-72">
+      <svg viewBox="0 0 300 300" className="size-full">
+        <circle cx="150" cy="150" r="140" fill="oklch(0.13 0.02 188)" stroke="oklch(0.22 0.02 188)" strokeWidth="1" />
+
+        <circle cx="150" cy="150" r={ringR} fill="none" stroke="oklch(0.20 0.02 188)" strokeWidth="3" />
+        <circle
+          cx="150"
+          cy="150"
+          r={ringR}
+          fill="none"
+          stroke={accent}
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray={`${ringDash} ${ringC}`}
+          transform="rotate(-90 150 150)"
+          style={{ filter: `drop-shadow(0 0 6px ${accentGlow})`, transition: "stroke-dasharray 0.4s linear" }}
+        />
+
+        {Array.from({ length: 12 }).map((_, i) => {
+          const a = (i * 30 - 90) * (Math.PI / 180);
+          const x1 = 150 + Math.cos(a) * 120;
+          const y1 = 150 + Math.sin(a) * 120;
+          const x2 = 150 + Math.cos(a) * 114;
+          const y2 = 150 + Math.sin(a) * 114;
+          return (
+            <line
+              key={i}
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              stroke="oklch(0.35 0.02 188)"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+            />
+          );
+        })}
+      </svg>
+
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+        <span
+          className={`font-mono text-5xl font-black tabular-nums sm:text-6xl ${running ? "" : "opacity-60"}`}
+          style={{ color: accent, textShadow: `0 0 16px ${accentGlow}` }}
+        >
+          {mm}:{ss}
+        </span>
+        <span className="mt-2 text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground">
+          {mode === "focus" ? "Focus" : mode === "longBreak" ? "Long Break" : "Break"}
+        </span>
+      </div>
+    </div>
   );
 }
 
 function TodayTargetView({ currentAccountId, data, users, onRefresh, onSync }: { currentAccountId: string; data: AppData; users: MutualUser[]; onRefresh: () => Promise<void>; onSync: () => Promise<void> }) {
   const user = users.find((item) => item.id === currentAccountId)!;
   const [presence, setPresence] = useState<Record<string, any>>({});
+
+  const dayKey = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+  const goalStorageKey = `today_target_goal_${dayKey}_${currentAccountId}`;
+  const [goal, setGoal] = useState<number>(4);
+  const [goalLoaded, setGoalLoaded] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(goalStorageKey);
+    if (stored) {
+      const n = Number(stored);
+      if (Number.isFinite(n) && n > 0) setGoal(n);
+    }
+    setGoalLoaded(true);
+  }, [goalStorageKey]);
+
+  useEffect(() => {
+    if (!goalLoaded) return;
+    localStorage.setItem(goalStorageKey, String(goal));
+  }, [goal, goalLoaded, goalStorageKey]);
 
   useEffect(() => {
     const channel = supabase
@@ -558,12 +638,56 @@ function TodayTargetView({ currentAccountId, data, users, onRefresh, onSync }: {
     onSync();
   }, []);
 
+  const solvedToday = userStats(data.problems, currentAccountId).today;
+  const goalPct = goal > 0 ? Math.min(100, Math.round((solvedToday / goal) * 100)) : 0;
+  const goalHit = solvedToday >= goal && goal > 0;
+
   return (
     <section className="animate-enter space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-2xl font-black">Today Target</h3>
         <p className="text-xs text-muted-foreground">Post 4 links and race.</p>
       </div>
+
+      <div className="glass-panel rounded-2xl p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground">
+            <Target className="size-3.5 text-primary" /> Today's Goal
+          </div>
+          <p className="text-xs">
+            <span className={`font-black ${goalHit ? "text-green-400" : "text-primary"}`}>{solvedToday}</span>
+            <span className="text-muted-foreground"> / {goal} solved · {goalPct}%</span>
+            {goalHit && <span className="ml-2 font-bold text-green-400">🔥 Goal hit!</span>}
+          </p>
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="size-9 shrink-0 rounded-lg border border-border bg-secondary/40 hover:bg-secondary" onClick={() => setGoal((g) => Math.max(1, g - 1))} aria-label="Decrease goal">
+            <span className="text-lg font-black">−</span>
+          </Button>
+          <input
+            type="number"
+            min={1}
+            max={50}
+            value={goal}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (Number.isFinite(n)) setGoal(Math.max(1, Math.min(50, n)));
+            }}
+            className="h-11 w-20 rounded-lg border border-input bg-background/70 text-center font-mono text-2xl font-black tabular-nums outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          <Button variant="ghost" size="icon" className="size-9 shrink-0 rounded-lg border border-border bg-secondary/40 hover:bg-secondary" onClick={() => setGoal((g) => Math.min(50, g + 1))} aria-label="Increase goal">
+            <span className="text-lg font-black">+</span>
+          </Button>
+          <span className="ml-1 text-xs font-semibold text-muted-foreground">problems today</span>
+        </div>
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary/40">
+          <div
+            className={`h-full transition-all duration-1000 ease-out ${goalHit ? "bg-green-500" : "bg-gradient-to-r from-primary via-accent to-primary shadow-glow"}`}
+            style={{ width: `${goalPct}%` }}
+          />
+        </div>
+      </div>
+
       <TodayTarget currentAccountId={currentAccountId} users={users} onRefresh={onRefresh} data={data} presence={presence} />
     </section>
   );
@@ -2252,109 +2376,170 @@ function Heatmap({ currentAccountId, problems, title = "Contribution Heatmap" }:
   );
 }
 
-function Leaderboard({ users, problems }: { users: MutualUser[]; problems: Problem[] }) {
-  const ranked = [...users].sort((a, b) => userStats(problems, b.id).total - userStats(problems, a.id).total);
-  return <section className="glass-panel animate-enter rounded-2xl p-5"><h3 className="mb-5 text-2xl font-black">Leaderboard</h3>{ranked.length === 0 && <p className="text-sm text-muted-foreground">No builders yet.</p>}{ranked.map((user, index) => <div key={user.id} className="mb-3 flex items-center justify-between rounded-xl bg-card/80 p-4"><div className="flex items-center gap-4"><span className="text-2xl">{index === 0 ? "🥇" : index === 1 ? "🥈" : "🏅"}</span><div><p className="text-lg font-bold">{user.emoji} {user.name}</p><p className="text-sm text-muted-foreground">@{user.username}</p></div></div><div className="text-right"><p className="text-2xl font-black">{userStats(problems, user.id).total}</p><p className="text-xs text-muted-foreground">total solved</p></div></div>)}</section>;
-}
-
 function MyProblems({ currentAccountId, problems }: { currentAccountId: string; problems: Problem[] }) {
-  const mine = problems.filter((problem) => problem.accountId === currentAccountId);
   const [filter, setFilter] = useState("");
-  const filtered = mine.filter((problem) => `${problem.platform} ${problem.difficulty} ${problem.topic} ${problem.name}`.toLowerCase().includes(filter.toLowerCase()));
-  return <section className="glass-panel animate-enter rounded-2xl p-5"><div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row"><h3 className="text-2xl font-black">My Problems</h3><label className="flex items-center gap-2 rounded-lg border border-input bg-background/70 px-3"><Search className="size-4 text-muted-foreground" /><input value={filter} onChange={(e) => setFilter(e.target.value)} className="h-10 bg-transparent outline-none" placeholder="Filter platform, topic..." /></label></div><ProblemTable problems={filtered} /></section>;
-}
+  const [diff, setDiff] = useState<"All" | "Easy" | "Medium" | "Hard">("All");
 
-function ProblemTable({ problems }: { problems: Problem[] }) {
-  const [viewingCode, setViewingCode] = useState<string | null>(null);
+  const mine = useMemo(
+    () => problems.filter((p) => p.accountId === currentAccountId),
+    [problems, currentAccountId]
+  );
+
+  const counts = useMemo(() => ({
+    total: mine.length,
+    easy: mine.filter((p) => p.difficulty === "Easy").length,
+    medium: mine.filter((p) => p.difficulty === "Medium").length,
+    hard: mine.filter((p) => p.difficulty === "Hard").length,
+  }), [mine]);
+
+  const filtered = useMemo(() => {
+    const q = filter.toLowerCase();
+    return mine
+      .filter((p) => diff === "All" || p.difficulty === diff)
+      .filter((p) => `${p.platform} ${p.difficulty} ${p.topic} ${p.name}`.toLowerCase().includes(q))
+      .sort((a, b) => new Date(b.solvedAt).getTime() - new Date(a.solvedAt).getTime());
+  }, [mine, filter, diff]);
+
+  const filters: Array<{ key: typeof diff; label: string; count: number; tone: string }> = [
+    { key: "All", label: "All", count: counts.total, tone: "text-foreground" },
+    { key: "Easy", label: "Easy", count: counts.easy, tone: "text-green-500" },
+    { key: "Medium", label: "Medium", count: counts.medium, tone: "text-yellow-500" },
+    { key: "Hard", label: "Hard", count: counts.hard, tone: "text-red-500" },
+  ];
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[720px] text-left text-sm">
-        <thead className="text-muted-foreground">
-          <tr className="border-b border-border">
-            <th className="pb-4 pt-2">Problem</th>
-            <th className="pb-4 pt-2">Platform</th>
-            <th className="pb-4 pt-2">Difficulty</th>
-            <th className="pb-4 pt-2">Pattern / Topic</th>
-            <th className="pb-4 pt-2">Code</th>
-            <th className="pb-4 pt-2">Time</th>
-            <th className="pb-4 pt-2 text-right">Date</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border/50">
-          {problems.map((problem) => (
-            <tr key={problem.id} className="group hover:bg-secondary/30 transition-colors">
-              <td className="py-4 font-semibold">
-                {problem.link ? (
-                  <a className="flex items-center gap-2 transition hover:text-primary" href={problem.link} target="_blank" rel="noreferrer">
-                    {problem.name} <ExternalLink className="size-3 opacity-0 group-hover:opacity-50" />
-                  </a>
-                ) : problem.name}
-              </td>
-              <td>
-                <span className="rounded-md bg-secondary/80 border border-border px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  {problem.platform}
-                </span>
-              </td>
-              <td>
-                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest ${
-                  problem.difficulty === "Easy" ? "bg-green-500/10 text-green-500 border border-green-500/20" :
-                  problem.difficulty === "Medium" ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20" :
-                  "bg-red-500/10 text-red-500 border border-red-500/20"
-                }`}>
-                  {problem.difficulty}
-                </span>
-              </td>
-              <td>
-                <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary shadow-sm">
-                  <Zap className="size-3" /> {problem.topic}
-                </span>
-              </td>
-              <td>
-                {problem.code ? (
-                  <button 
-                    onClick={() => setViewingCode(problem.code!)}
-                    className="flex items-center gap-1 text-[10px] font-bold text-primary hover:underline"
-                  >
-                    <BookOpenCheck className="size-3" /> VIEW CODE
-                  </button>
-                ) : (
-                  <span className="text-[10px] text-muted-foreground opacity-30">--</span>
-                )}
-              </td>
-              <td className="font-medium text-muted-foreground">{problem.timeTaken}m</td>
-              <td className="text-muted-foreground text-right">{new Date(problem.solvedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <section className="animate-enter space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-2xl font-black">My Problems</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {counts.total} solved · <span className="text-green-500">{counts.easy} easy</span> · <span className="text-yellow-500">{counts.medium} medium</span> · <span className="text-red-500">{counts.hard} hard</span>
+          </p>
+        </div>
+        <label className="flex items-center gap-2 rounded-lg border border-input bg-background/70 px-3 sm:w-72">
+          <Search className="size-4 text-muted-foreground" />
+          <input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="h-10 flex-1 bg-transparent text-sm outline-none"
+            placeholder="Search name, platform, topic..."
+          />
+        </label>
+      </div>
+
+      <div className="inline-flex rounded-lg border border-border bg-secondary/40 p-1">
+        {filters.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setDiff(f.key)}
+            className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition ${
+              diff === f.key
+                ? "bg-primary text-primary-foreground shadow-glow"
+                : `${f.tone} hover:bg-secondary`
+            }`}
+          >
+            {f.label}
+            <span className={`rounded-full px-1.5 text-[10px] ${diff === f.key ? "bg-primary-foreground/20" : "bg-secondary"}`}>{f.count}</span>
+          </button>
+        ))}
+      </div>
+
+      <ProblemList problems={filtered} />
+    </section>
+  );
+}
+
+function ProblemList({ problems }: { problems: Problem[] }) {
+  const [viewingCode, setViewingCode] = useState<string | null>(null);
+
+  if (problems.length === 0) {
+    return (
+      <div className="glass-panel rounded-xl p-10 text-center text-sm text-muted-foreground">
+        No problems match your filters.
+      </div>
+    );
+  }
+
+  const borderByDiff: Record<string, string> = {
+    Easy: "border-l-green-500",
+    Medium: "border-l-yellow-500",
+    Hard: "border-l-red-500",
+  };
+
+  return (
+    <>
+      <ul className="space-y-2">
+        {problems.map((p) => (
+          <li
+            key={p.id}
+            className={`group flex items-center gap-4 rounded-xl border border-border border-l-[3px] ${borderByDiff[p.difficulty] ?? ""} bg-card/50 px-4 py-3 transition hover:-translate-y-px hover:border-primary/40 hover:bg-card`}
+          >
+            <div className="min-w-0 flex-1">
+              {p.link ? (
+                <a
+                  href={p.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex max-w-full items-center gap-1.5 text-sm font-semibold transition hover:text-primary"
+                >
+                  <span className="truncate">{p.name}</span>
+                  <ExternalLink className="size-3 shrink-0 opacity-0 transition group-hover:opacity-60" />
+                </a>
+              ) : (
+                <span className="block truncate text-sm font-semibold">{p.name}</span>
+              )}
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                <span className="font-bold uppercase tracking-wider">{p.platform}</span>
+                <span className="opacity-50">·</span>
+                <span className="font-semibold text-primary">{p.topic}</span>
+                <span className="opacity-50">·</span>
+                <span>{p.timeTaken}m</span>
+                <span className="opacity-50">·</span>
+                <span>{new Date(p.solvedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+              </div>
+            </div>
+            {p.code && (
+              <button
+                type="button"
+                onClick={() => setViewingCode(p.code!)}
+                title="View solution"
+                className="shrink-0 rounded-md border border-border p-2 text-muted-foreground transition hover:border-primary/40 hover:text-primary"
+              >
+                <BookOpenCheck className="size-4" />
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
 
       {viewingCode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in" onClick={() => setViewingCode(null)}>
-          <div className="glass-panel w-full max-w-4xl rounded-2xl p-6 shadow-2xl animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4 border-b border-border pb-4">
+        <div
+          className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          onClick={() => setViewingCode(null)}
+        >
+          <div
+            className="glass-panel animate-in zoom-in-95 w-full max-w-4xl rounded-2xl p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between border-b border-border pb-4">
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-primary/20 p-2">
                   <ShieldCheck className="size-5 text-primary" />
                 </div>
-                <div>
-                  <h4 className="text-xl font-bold">Solution Code</h4>
-                  <p className="text-xs text-muted-foreground">Persisted solution and AI review snapshot</p>
-                </div>
+                <h4 className="text-lg font-bold">Solution</h4>
               </div>
               <Button variant="secondary" size="sm" onClick={() => setViewingCode(null)}>
-                <LogOut className="size-4 mr-2" /> Close
+                <LogOut className="size-4" /> Close
               </Button>
             </div>
-            <div className="relative">
-              <pre className="max-h-[60vh] overflow-auto rounded-xl bg-background/50 border border-border p-6 font-mono text-[11px] leading-relaxed text-foreground scrollbar-thin scrollbar-thumb-primary/20">
-                <code>{viewingCode}</code>
-              </pre>
-            </div>
+            <pre className="scrollbar-thin scrollbar-thumb-primary/20 max-h-[60vh] overflow-auto rounded-xl border border-border bg-background/50 p-6 font-mono text-[11px] leading-relaxed text-foreground">
+              <code>{viewingCode}</code>
+            </pre>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -3291,6 +3476,19 @@ const FOCUS_DEFAULTS: FocusSettings = {
 function focusSettingsKey(id: string) { return `focus_settings_${id}`; }
 function focusSessionsKey(id: string) { return `focus_sessions_${id}`; }
 function focusTaskKey(id: string) { return `focus_current_task_${id}`; }
+function focusTasksKey(id: string) { return `focus_task_list_${id}`; }
+
+function loadFocusTasks(accountId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(focusTasksKey(accountId));
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return arr.filter((s: unknown) => typeof s === "string" && (s as string).trim());
+    }
+  } catch {}
+  return [];
+}
 
 function loadFocusSettings(accountId: string): FocusSettings {
   if (typeof window === "undefined") return FOCUS_DEFAULTS;
@@ -3377,6 +3575,16 @@ function FocusTodo({ currentAccountId }: { currentAccountId: string }) {
   const [now, setNow] = useState<number>(() => Date.now());
   const [todayFocusSec, setTodayFocusSec] = useState(0);
   const [todayCompletedCount, setTodayCompletedCount] = useState(0);
+  const [todaySecByTask, setTodaySecByTask] = useState<Record<string, number>>({});
+  const [tasks, setTasks] = useState<string[]>(() => {
+    const stored = loadFocusTasks(currentAccountId);
+    const current = typeof window !== "undefined" ? (localStorage.getItem(focusTaskKey(currentAccountId)) ?? "").trim() : "";
+    if (current && !stored.some((t) => t.toLowerCase() === current.toLowerCase())) {
+      return [...stored, current];
+    }
+    return stored;
+  });
+  const [newTaskInput, setNewTaskInput] = useState("");
   const [showSettings, setShowSettings] = useState(false);
 
   const runStartRef = useRef<number | null>(null);
@@ -3392,6 +3600,10 @@ function FocusTodo({ currentAccountId }: { currentAccountId: string }) {
     localStorage.setItem(focusTaskKey(currentAccountId), task);
   }, [task, currentAccountId]);
 
+  useEffect(() => {
+    localStorage.setItem(focusTasksKey(currentAccountId), JSON.stringify(tasks));
+  }, [tasks, currentAccountId]);
+
   // recompute today's totals from log
   const refreshTodayTotals = () => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -3399,6 +3611,13 @@ function FocusTodo({ currentAccountId }: { currentAccountId: string }) {
     const focus = sessions.filter(s => s.type === "focus" && new Date(s.startedAt) >= today);
     setTodayFocusSec(focus.reduce((a, s) => a + s.durationSec, 0));
     setTodayCompletedCount(focus.filter(s => s.completed).length);
+    const byTask: Record<string, number> = {};
+    for (const s of focus) {
+      const k = (s.task ?? "").trim();
+      if (!k) continue;
+      byTask[k] = (byTask[k] || 0) + s.durationSec;
+    }
+    setTodaySecByTask(byTask);
   };
 
   useEffect(() => { refreshTodayTotals(); }, [currentAccountId]);
@@ -3593,6 +3812,73 @@ function FocusTodo({ currentAccountId }: { currentAccountId: string }) {
     setMode(next);
   };
 
+  const addTask = () => {
+    const name = newTaskInput.trim();
+    if (!name) return;
+    if (tasks.some((t) => t.toLowerCase() === name.toLowerCase())) {
+      toast.info("Task already in list");
+      return;
+    }
+    setTasks([...tasks, name]);
+    setNewTaskInput("");
+    if (!task.trim()) setTask(name);
+  };
+
+  const removeTask = (name: string) => {
+    setTasks(tasks.filter((t) => t !== name));
+    if (task === name) {
+      if (mode === "focus" && sessionInProgress) {
+        const ok = window.confirm(`"${name}" is the active task. Remove it and discard the in-progress session?`);
+        if (!ok) return;
+        runStartRef.current = null;
+        sessionStartRef.current = null;
+        setAccumSec(0);
+        setRunning(false);
+        completedRef.current = false;
+      }
+      setTask("");
+    }
+  };
+
+  const switchTask = (next: string) => {
+    if (next === task) return;
+    if (mode === "focus" && sessionInProgress) {
+      let segment = 0;
+      if (running && runStartRef.current !== null) {
+        segment = Math.max(0, Math.floor((Date.now() - runStartRef.current) / 1000));
+      }
+      const finalElapsed = accumSec + segment;
+      if (finalElapsed > 0 && sessionStartRef.current !== null) {
+        appendFocusSession(currentAccountId, {
+          type: "focus",
+          startedAt: new Date(sessionStartRef.current).toISOString(),
+          durationSec: finalElapsed,
+          completed: false,
+          plannedSec: planned,
+          task: task.trim() || undefined,
+        });
+        toast.success(`Logged ${fmtDuration(finalElapsed)} to ${task || "previous task"}`);
+      }
+      const wasRunning = running;
+      runStartRef.current = null;
+      sessionStartRef.current = null;
+      setAccumSec(0);
+      completedRef.current = false;
+      if (wasRunning) {
+        const t = Date.now();
+        sessionStartRef.current = t;
+        runStartRef.current = t;
+      }
+      refreshTodayTotals();
+    }
+    setTask(next);
+  };
+
+  const liveSecForTask = (t: string) => {
+    const base = todaySecByTask[t] ?? 0;
+    return mode === "focus" && t === task && t.trim() ? base + elapsed : base;
+  };
+
   const mm = Math.floor(remaining / 60).toString().padStart(2, "0");
   const ss = (remaining % 60).toString().padStart(2, "0");
   const circumference = 2 * Math.PI * 45;
@@ -3614,30 +3900,92 @@ function FocusTodo({ currentAccountId }: { currentAccountId: string }) {
         </div>
 
         {mode === "focus" && (
-          <div className="mb-4">
-            <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">What are you working on?</label>
-            <input
-              value={task}
-              onChange={(e) => setTask(e.target.value)}
-              placeholder="e.g. LeetCode 200 Number of Islands"
-              className="mt-1 h-11 w-full rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30"
-            />
+          <div className="mb-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">What are you working on?</label>
+              <span className="text-[10px] font-bold text-muted-foreground">
+                Active: <span className="text-primary">{task.trim() || "—"}</span>
+              </span>
+            </div>
+
+            {tasks.length > 0 && (
+              <div className="grid gap-2">
+                {tasks.map((t) => {
+                  const isActive = task === t;
+                  const sec = liveSecForTask(t);
+                  return (
+                    <div
+                      key={t}
+                      className={`group flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition ${
+                        isActive
+                          ? "border-primary bg-primary/10 shadow-glow"
+                          : "border-border bg-card/50 hover:border-primary/40 hover:bg-card/80"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => switchTask(t)}
+                        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                      >
+                        <span
+                          className={`size-2.5 shrink-0 rounded-full ${
+                            isActive && running
+                              ? "animate-pulse bg-primary shadow-glow"
+                              : isActive
+                                ? "bg-primary"
+                                : "bg-muted-foreground/40"
+                          }`}
+                        />
+                        <span className={`truncate text-sm font-bold ${isActive ? "text-primary" : "text-foreground"}`}>{t}</span>
+                      </button>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="font-mono text-xs tabular-nums text-muted-foreground">{fmtDuration(sec)}</span>
+                        {isActive ? (
+                          <span className="rounded-md bg-primary px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary-foreground">
+                            Active
+                          </span>
+                        ) : (
+                          <Button variant="ghost" size="sm" onClick={() => switchTask(t)} className="h-7 px-2 text-[10px] font-black uppercase tracking-wider">
+                            Switch
+                          </Button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeTask(t)}
+                          className="text-muted-foreground transition hover:text-destructive"
+                          aria-label={`Remove ${t}`}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                value={newTaskInput}
+                onChange={(e) => setNewTaskInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addTask();
+                  }
+                }}
+                placeholder="Add a task — e.g. DSA, Dev, System Design"
+                className="h-10 flex-1 rounded-lg border border-input bg-background/70 px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <Button variant="secondary" onClick={addTask} disabled={!newTaskInput.trim()}>
+                <Plus className="size-4" /> Add
+              </Button>
+            </div>
           </div>
         )}
 
         <div className="flex flex-col items-center py-4">
-          <div className="relative size-64 sm:size-72">
-            <svg className="size-full -rotate-90" viewBox="0 0 100 100" aria-hidden>
-              <circle cx="50" cy="50" r="45" stroke="hsl(var(--secondary))" strokeWidth="6" fill="none" />
-              <circle cx="50" cy="50" r="45" stroke={mode === "focus" ? "hsl(var(--primary))" : "hsl(var(--accent))"} strokeWidth="6" fill="none" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - pct / 100)} style={{ transition: "stroke-dashoffset 0.4s linear" }} />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-6xl font-black tabular-nums">{mm}:{ss}</span>
-              <span className="mt-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                {mode === "focus" ? "Focus" : mode === "longBreak" ? "Long Break" : "Break"} · {Math.round(pct)}%
-              </span>
-            </div>
-          </div>
+          <FocusClock pct={pct} mm={mm} ss={ss} mode={mode} running={running} />
 
           {/* Pomodoro cycle dots */}
           <div className="mt-4 flex items-center gap-1.5" aria-label="Pomodoro cycle progress">
@@ -3736,6 +4084,20 @@ function FocusTodo({ currentAccountId }: { currentAccountId: string }) {
   );
 }
 
+function FocusBarTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { fullDate: string; sec: number } }> }) {
+  if (!active || !payload?.length) return null;
+  const { fullDate, sec } = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-border bg-popover/95 px-3 py-2 shadow-xl backdrop-blur">
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">{fullDate}</p>
+      <p className="mt-1 font-mono text-lg font-black tabular-nums text-primary">
+        {sec > 0 ? fmtDuration(sec) : "—"}
+      </p>
+      <p className="text-[10px] text-muted-foreground">focus time</p>
+    </div>
+  );
+}
+
 function FocusAnalytics({ currentAccountId }: { currentAccountId: string }) {
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -3743,7 +4105,32 @@ function FocusAnalytics({ currentAccountId }: { currentAccountId: string }) {
     return () => window.clearInterval(id);
   }, []);
 
-  const settings = useMemo(() => loadFocusSettings(currentAccountId), [currentAccountId, tick]);
+  const [settings, setSettings] = useState<FocusSettings>(() => loadFocusSettings(currentAccountId));
+  const [isEditingGoal, setIsEditingGoal] = useState(false);
+  const [goalDraft, setGoalDraft] = useState<string>(() => String(loadFocusSettings(currentAccountId).dailyGoalMin));
+
+  useEffect(() => {
+    if (isEditingGoal) return;
+    const fresh = loadFocusSettings(currentAccountId);
+    setSettings(fresh);
+    setGoalDraft(String(fresh.dailyGoalMin));
+  }, [currentAccountId, tick, isEditingGoal]);
+
+  const saveGoal = () => {
+    const parsed = Number(goalDraft);
+    const n = Math.max(5, Math.min(1000, Number.isFinite(parsed) ? Math.round(parsed) : settings.dailyGoalMin));
+    const next: FocusSettings = { ...settings, dailyGoalMin: n };
+    setSettings(next);
+    localStorage.setItem(focusSettingsKey(currentAccountId), JSON.stringify(next));
+    setGoalDraft(String(n));
+    setIsEditingGoal(false);
+    toast.success(`Daily goal updated to ${n}m`);
+  };
+
+  const cancelGoalEdit = () => {
+    setGoalDraft(String(settings.dailyGoalMin));
+    setIsEditingGoal(false);
+  };
 
   const { todaySec, weekSec, totalSec, completedCount, avgMin, longestMin, streak, chartData, hasData, topTasks, recentSessions, bestDayMin, completionRate } = useMemo(() => {
     const sessions = loadFocusSessions(currentAccountId);
@@ -3770,9 +4157,12 @@ function FocusAnalytics({ currentAccountId }: { currentAccountId: string }) {
     const chartData = Array.from({ length: 14 }).map((_, i) => {
       const d = new Date(today);
       d.setDate(d.getDate() - (13 - i));
+      const sec = dayMap.get(dayKey(d)) ?? 0;
       return {
         date: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-        minutes: Math.round((dayMap.get(dayKey(d)) ?? 0) / 60),
+        fullDate: d.toLocaleDateString(undefined, { weekday: "short", month: "long", day: "numeric" }),
+        minutes: sec / 60,
+        sec,
       };
     });
 
@@ -3820,9 +4210,42 @@ function FocusAnalytics({ currentAccountId }: { currentAccountId: string }) {
 
       {/* Daily goal */}
       <div className="glass-panel rounded-2xl p-5">
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center justify-between gap-3 text-sm">
           <span className="font-bold">Today's goal</span>
-          <span className="tabular-nums text-muted-foreground">{fmtDuration(todaySec)} / {settings.dailyGoalMin}m · {Math.round(goalPct)}%</span>
+          {isEditingGoal ? (
+            <div className="flex items-center gap-2">
+              <span className="tabular-nums text-muted-foreground">{fmtDuration(todaySec)} /</span>
+              <input
+                type="number"
+                min={5}
+                max={1000}
+                autoFocus
+                value={goalDraft}
+                onChange={(e) => setGoalDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); saveGoal(); }
+                  if (e.key === "Escape") { e.preventDefault(); cancelGoalEdit(); }
+                }}
+                className="h-8 w-20 rounded-md border border-input bg-background/70 px-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <span className="text-xs text-muted-foreground">min</span>
+              <button type="button" onClick={saveGoal} className="text-xs font-bold text-primary hover:underline">Save</button>
+              <button type="button" onClick={cancelGoalEdit} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="tabular-nums text-muted-foreground">
+                {fmtDuration(todaySec)} / <span className="text-foreground">{settings.dailyGoalMin}m</span> · {Math.round(goalPct)}%
+              </span>
+              <button
+                type="button"
+                onClick={() => { setGoalDraft(String(settings.dailyGoalMin)); setIsEditingGoal(true); }}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Edit
+              </button>
+            </div>
+          )}
         </div>
         <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-secondary">
           <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${goalPct}%` }} />
@@ -3853,12 +4276,21 @@ function FocusAnalytics({ currentAccountId }: { currentAccountId: string }) {
           <p className="text-sm text-muted-foreground">No focus sessions yet — start one in the FocusTodo tab.</p>
         ) : (
           <ChartContainer config={{ minutes: { label: "Focus Minutes", color: "hsl(var(--primary))" } }} className="h-64 w-full">
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="minutes" fill="var(--color-minutes)" radius={[4, 4, 0, 0]} />
+            <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+              <YAxis
+                tick={{ fontSize: 11 }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v: number) => (v >= 60 ? `${Math.round(v / 60)}h` : `${Math.round(v)}m`)}
+                width={36}
+              />
+              <ChartTooltip
+                cursor={{ fill: "hsl(var(--primary) / 0.08)" }}
+                content={<FocusBarTooltip />}
+              />
+              <Bar dataKey="minutes" fill="var(--color-minutes)" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ChartContainer>
         )}
