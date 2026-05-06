@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
+  Sparkles,
   Swords,
   Target,
   Trash2,
@@ -564,9 +565,11 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
   const [solvedMeta, setSolvedMeta] = useState<Record<string, { difficulty: string; timeTaken: string }>>({});
   const [alreadyLogged, setAlreadyLogged] = useState<Record<string, boolean>>({});
   const [saveProgressBusy, setSaveProgressBusy] = useState(false);
-  const [fetchedTitles, setFetchedTitles] = useState<Record<string, { name: string; platform: string; difficulty: string }>>({});
+  const [fetchedTitles, setFetchedTitles] = useState<Record<string, { name: string; platform: string; difficulty: string; topic: string }>>({});
   const [presence, setPresence] = useState<Record<string, any>>({});
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [hints, setHints] = useState<Record<string, string>>({});
+  const [fetchingHint, setFetchingHint] = useState<Record<string, boolean>>({});
   const userNameById = useMemo(() => new Map(users.map((u) => [u.id, `${u.emoji} ${u.name}`])), [users]);
 
   const fetchTitle = async (url: string, slotKey: string | number) => {
@@ -576,7 +579,15 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
       const res = await fetch(`/api/problem-metadata?url=${encodeURIComponent(trimmed)}`);
       if (res.ok) {
         const meta = await res.json();
-        setFetchedTitles(prev => ({ ...prev, [String(slotKey)]: meta }));
+        setFetchedTitles((prev) => ({
+          ...prev,
+          [slotKey]: {
+            name: meta.name,
+            platform: meta.platform,
+            difficulty: meta.difficulty,
+            topic: meta.topic || "DSA",
+          },
+        }));
         if (!solvedMeta[String(slotKey)]) {
           setSolvedMeta(prev => ({ 
             ...prev, 
@@ -605,6 +616,38 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
       }
     });
   }, [carryOverLinks]);
+
+  const handleGetHint = async (slotKey: string, link: string) => {
+    if (!link.trim() || fetchingHint[slotKey]) return;
+    
+    const meta = fetchedTitles[slotKey];
+    setFetchingHint(prev => ({ ...prev, [slotKey]: true }));
+    
+    try {
+      const res = await fetch("/api/problem-hint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: link,
+          name: meta?.name || deriveName(link, 0),
+          topic: meta?.topic || "DSA",
+          difficulty: meta?.difficulty || "Medium"
+        })
+      });
+      
+      if (res.ok) {
+        const { hint } = await res.json();
+        setHints(prev => ({ ...prev, [slotKey]: hint }));
+      } else {
+        toast.error("Failed to get hint");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Error fetching hint");
+    } finally {
+      setFetchingHint(prev => ({ ...prev, [slotKey]: false }));
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -1263,11 +1306,23 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     {link.trim() && (
-                      <Button variant="outline" size="sm" className="h-11 shrink-0 gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10" asChild>
-                        <a href={link.startsWith('http') ? link : `https://${link}`} target="_blank" rel="noreferrer">
-                          <ExternalLink className="size-4" /> See the problem
-                        </a>
-                      </Button>
+                      <>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-11 shrink-0 gap-2 border border-primary/10 bg-primary/5 text-primary hover:bg-primary/10"
+                          onClick={() => handleGetHint(slotKey, link)}
+                          disabled={fetchingHint[slotKey]}
+                        >
+                          {fetchingHint[slotKey] ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />} 
+                          {hints[slotKey] ? "Another Hint" : "Get AI Hint"}
+                        </Button>
+                        <Button variant="outline" size="sm" className="h-11 shrink-0 gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10" asChild>
+                          <a href={link.startsWith('http') ? link : `https://${link}`} target="_blank" rel="noreferrer">
+                            <ExternalLink className="size-4" /> See the problem
+                          </a>
+                        </Button>
+                      </>
                     )}
                     {links.length > 1 && (
                       <Button 
@@ -1311,6 +1366,20 @@ function TodayTarget({ currentAccountId, users, onRefresh, data }: { currentAcco
                       ))}
                     </div>
                     <span className="text-xs font-semibold text-primary">→ Will log as solved</span>
+                  </div>
+                )}
+
+                {hints[slotKey] && (
+                  <div className="ml-1 mt-1 mb-3 rounded-lg border border-accent/20 bg-accent/5 p-4 animate-in fade-in slide-in-from-top-1">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 rounded-full bg-accent/20 p-1">
+                        <Zap className="size-3 text-accent" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-accent mb-1">AI Coach Hint</p>
+                        <p className="text-sm text-foreground leading-relaxed">{hints[slotKey]}</p>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -1649,9 +1718,12 @@ function LogProblem({ currentAccountId, data, compact = false, onRefresh }: { cu
     topic: "Arrays", 
     customTopic: "",
     timeTaken: "25", 
-    notes: "" 
+    notes: "",
+    code: "" 
   });
   const [linkBusy, setLinkBusy] = useState(false);
+  const [reviewResult, setReviewResult] = useState<any>(null);
+  const [reviewBusy, setReviewBusy] = useState(false);
 
   // Dynamically calculate available platforms and topics from existing data
   const dynamicOptions = useMemo(() => {
@@ -1731,7 +1803,8 @@ function LogProblem({ currentAccountId, data, compact = false, onRefresh }: { cu
       difficulty: form.difficulty, 
       topic: finalTopic, 
       time_taken: Number(form.timeTaken) || 0, 
-      notes: form.notes.trim() 
+      notes: form.notes.trim(),
+      code: form.code.trim()
     }); 
 
     if (error) { 
@@ -1756,8 +1829,42 @@ function LogProblem({ currentAccountId, data, compact = false, onRefresh }: { cu
       toast.success("Problem logged. Streak protected!"); 
     }
 
-    setForm({ ...form, name: "", link: "", notes: "", customPlatform: "", customTopic: "" }); 
+    setForm({ ...form, name: "", link: "", notes: "", code: "", customPlatform: "", customTopic: "" }); 
+    setReviewResult(null);
     await onRefresh?.(); 
+  };
+
+  const handleCodeReview = async () => {
+    if (!form.code.trim()) {
+      toast.error("Please paste your code first");
+      return;
+    }
+    setReviewBusy(true);
+    setReviewResult(null);
+    try {
+      const res = await fetch("/api/code-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: form.code,
+          problemName: form.name,
+          topic: form.topic === "Custom..." ? form.customTopic : form.topic,
+          language: form.platform === "LeetCode" ? "cpp/python/java" : "auto"
+        })
+      });
+      if (res.ok) {
+        const result = await res.json();
+        setReviewResult(result);
+        toast.success("AI Review Complete!");
+      } else {
+        toast.error("Failed to review code");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Error during AI review");
+    } finally {
+      setReviewBusy(false);
+    }
   };
 
   if (compact) {
@@ -1870,10 +1977,80 @@ function LogProblem({ currentAccountId, data, compact = false, onRefresh }: { cu
       <Select value={form.difficulty} options={[...difficulties]} onChange={(value) => setForm({ ...form, difficulty: value })} />
       <input value={form.timeTaken} onChange={(e) => setForm({ ...form, timeTaken: e.target.value })} className="h-11 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="Time taken (min)" />
       
-      <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="min-h-24 rounded-lg border border-input bg-background/70 px-3 py-3 outline-none focus:ring-2 focus:ring-primary/30 md:col-span-2" placeholder="Notes" />
+      <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="min-h-24 rounded-lg border border-input bg-background/70 px-3 py-3 outline-none focus:ring-2 focus:ring-primary/30 md:col-span-1" placeholder="Notes (optional)" />
       
-      <Button variant="rival" className="md:col-span-2">
-        <Plus /> Log Solved Problem
+      <div className="space-y-3 md:col-span-1">
+        <div className="relative">
+          <textarea 
+            value={form.code} 
+            onChange={(e) => setForm({ ...form, code: e.target.value })} 
+            className="min-h-24 w-full rounded-lg border border-input bg-background/70 px-3 py-3 font-mono text-xs outline-none focus:ring-2 focus:ring-primary/30" 
+            placeholder="Paste your solution code here..." 
+          />
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="sm" 
+            className="absolute right-2 bottom-2 gap-2 bg-primary/10 text-primary hover:bg-primary/20"
+            onClick={handleCodeReview}
+            disabled={reviewBusy}
+          >
+            {reviewBusy ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}
+            Review with Gemini
+          </Button>
+        </div>
+      </div>
+
+      {reviewResult && (
+        <div className="md:col-span-2 glass-panel rounded-xl p-5 border-l-4 border-l-primary animate-in fade-in slide-in-from-top-2">
+          <div className="flex justify-between items-start mb-3">
+            <div className="flex items-center gap-2">
+              <div className="rounded-full bg-primary/20 p-1.5">
+                <ShieldCheck className="size-4 text-primary" />
+              </div>
+              <h4 className="font-bold text-lg">Gemini Analysis</h4>
+            </div>
+            <div className={`px-3 py-1 rounded-full text-xs font-black ${
+              reviewResult.rating === 'A' ? 'bg-green-500/20 text-green-500' :
+              reviewResult.rating === 'B' ? 'bg-blue-500/20 text-blue-500' :
+              'bg-yellow-500/20 text-yellow-500'
+            }`}>
+              GRADE: {reviewResult.rating}
+            </div>
+          </div>
+          
+          <div className="grid gap-4 sm:grid-cols-3 mb-4">
+            <div className="rounded-lg bg-secondary/30 p-3">
+              <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Time Complexity</p>
+              <p className="font-mono font-bold text-foreground">{reviewResult.timeComplexity}</p>
+            </div>
+            <div className="rounded-lg bg-secondary/30 p-3">
+              <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Space Complexity</p>
+              <p className="font-mono font-bold text-foreground">{reviewResult.spaceComplexity}</p>
+            </div>
+            <div className="rounded-lg bg-secondary/30 p-3">
+              <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Optimal</p>
+              <p className="font-bold text-foreground">{reviewResult.isOptimal ? "✅ YES" : "❌ NO"}</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-bold text-primary mb-1 uppercase tracking-tighter">AI Feedback</p>
+              <p className="text-sm text-foreground italic">"{reviewResult.feedback}"</p>
+            </div>
+            {reviewResult.optimizations && (
+              <div>
+                <p className="text-xs font-bold text-accent mb-1 uppercase tracking-tighter">Optimization Tip</p>
+                <p className="text-sm text-muted-foreground">{reviewResult.optimizations}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <Button variant="rival" className="md:col-span-2 h-12 text-lg">
+        <Plus /> Log Solved Problem & Save Solution
       </Button>
     </form>
   );
@@ -2100,7 +2277,97 @@ function MyProblems({ currentAccountId, problems }: { currentAccountId: string; 
 }
 
 function ProblemTable({ problems }: { problems: Problem[] }) {
-  return <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="text-muted-foreground"><tr><th className="py-3">Problem</th><th>Platform</th><th>Difficulty</th><th>Topic</th><th>Time</th><th>Date</th></tr></thead><tbody>{problems.map((problem) => <tr key={problem.id} className="border-t border-border"><td className="py-3 font-semibold">{problem.link ? <a className="transition hover:text-primary" href={problem.link} target="_blank" rel="noreferrer">{problem.name}</a> : problem.name}</td><td>{problem.platform}</td><td>{problem.difficulty}</td><td>{problem.topic}</td><td>{problem.timeTaken}m</td><td>{new Date(problem.solvedAt).toLocaleDateString()}</td></tr>)}</tbody></table></div>;
+  const [viewingCode, setViewingCode] = useState<string | null>(null);
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[720px] text-left text-sm">
+        <thead className="text-muted-foreground">
+          <tr className="border-b border-border">
+            <th className="pb-4 pt-2">Problem</th>
+            <th className="pb-4 pt-2">Platform</th>
+            <th className="pb-4 pt-2">Difficulty</th>
+            <th className="pb-4 pt-2">Pattern / Topic</th>
+            <th className="pb-4 pt-2">Code</th>
+            <th className="pb-4 pt-2">Time</th>
+            <th className="pb-4 pt-2 text-right">Date</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/50">
+          {problems.map((problem) => (
+            <tr key={problem.id} className="group hover:bg-secondary/30 transition-colors">
+              <td className="py-4 font-semibold">
+                {problem.link ? (
+                  <a className="flex items-center gap-2 transition hover:text-primary" href={problem.link} target="_blank" rel="noreferrer">
+                    {problem.name} <ExternalLink className="size-3 opacity-0 group-hover:opacity-50" />
+                  </a>
+                ) : problem.name}
+              </td>
+              <td>
+                <span className="rounded-md bg-secondary/80 border border-border px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {problem.platform}
+                </span>
+              </td>
+              <td>
+                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest ${
+                  problem.difficulty === "Easy" ? "bg-green-500/10 text-green-500 border border-green-500/20" :
+                  problem.difficulty === "Medium" ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20" :
+                  "bg-red-500/10 text-red-500 border border-red-500/20"
+                }`}>
+                  {problem.difficulty}
+                </span>
+              </td>
+              <td>
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary shadow-sm">
+                  <Zap className="size-3" /> {problem.topic}
+                </span>
+              </td>
+              <td>
+                {problem.code ? (
+                  <button 
+                    onClick={() => setViewingCode(problem.code!)}
+                    className="flex items-center gap-1 text-[10px] font-bold text-primary hover:underline"
+                  >
+                    <BookOpenCheck className="size-3" /> VIEW CODE
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground opacity-30">--</span>
+                )}
+              </td>
+              <td className="font-medium text-muted-foreground">{problem.timeTaken}m</td>
+              <td className="text-muted-foreground text-right">{new Date(problem.solvedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {viewingCode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in" onClick={() => setViewingCode(null)}>
+          <div className="glass-panel w-full max-w-4xl rounded-2xl p-6 shadow-2xl animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 border-b border-border pb-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-primary/20 p-2">
+                  <ShieldCheck className="size-5 text-primary" />
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold">Solution Code</h4>
+                  <p className="text-xs text-muted-foreground">Persisted solution and AI review snapshot</p>
+                </div>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => setViewingCode(null)}>
+                <LogOut className="size-4 mr-2" /> Close
+              </Button>
+            </div>
+            <div className="relative">
+              <pre className="max-h-[60vh] overflow-auto rounded-xl bg-background/50 border border-border p-6 font-mono text-[11px] leading-relaxed text-foreground scrollbar-thin scrollbar-thumb-primary/20">
+                <code>{viewingCode}</code>
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function HallOfFame({ users, problems }: { users: MutualUser[]; problems: Problem[] }) {

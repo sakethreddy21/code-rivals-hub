@@ -32,6 +32,7 @@ export type Problem = {
   topic: string;
   timeTaken: number;
   notes: string;
+  code?: string;
   solvedAt: string;
 };
 
