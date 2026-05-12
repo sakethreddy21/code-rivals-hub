@@ -42,60 +42,61 @@ import {
   type FocusSettings,
 } from "@/lib/focus";
 
-export function FocusClock({ pct, mm, ss, mode, running }: { pct: number; mm: string; ss: string; mode: FocusMode; running: boolean }) {
-  const ringR = 132;
-  const ringC = 2 * Math.PI * ringR;
+const RING_R = 132;
+const RING_C = 2 * Math.PI * RING_R;
+const CLOCK_TICKS = Array.from({ length: 12 }).map((_, i) => {
+  const a = (i * 30 - 90) * (Math.PI / 180);
+  return {
+    x1: 150 + Math.cos(a) * 120,
+    y1: 150 + Math.sin(a) * 120,
+    x2: 150 + Math.cos(a) * 114,
+    y2: 150 + Math.sin(a) * 114,
+  };
+});
+
+export const FocusClock = React.memo(function FocusClock({ pct, mm, ss, mode, running }: { pct: number; mm: string; ss: string; mode: FocusMode; running: boolean }) {
   const clamped = Math.max(0, Math.min(100, pct));
-  const ringDash = ringC * (clamped / 100);
+  const ringDash = RING_C * (clamped / 100);
 
   const isFocus = mode === "focus";
   const accent = isFocus ? "oklch(0.74 0.18 151.1)" : "oklch(0.75 0.17 58.5)";
-  const accentGlow = isFocus ? "oklch(0.74 0.18 151.1 / 0.4)" : "oklch(0.75 0.17 58.5 / 0.4)";
 
   return (
     <div className="relative size-64 sm:size-72">
       <svg viewBox="0 0 300 300" className="size-full">
         <circle cx="150" cy="150" r="140" fill="oklch(0.13 0.02 188)" stroke="oklch(0.22 0.02 188)" strokeWidth="1" />
 
-        <circle cx="150" cy="150" r={ringR} fill="none" stroke="oklch(0.20 0.02 188)" strokeWidth="3" />
+        <circle cx="150" cy="150" r={RING_R} fill="none" stroke="oklch(0.20 0.02 188)" strokeWidth="3" />
         <circle
           cx="150"
           cy="150"
-          r={ringR}
+          r={RING_R}
           fill="none"
           stroke={accent}
           strokeWidth="3"
           strokeLinecap="round"
-          strokeDasharray={`${ringDash} ${ringC}`}
+          strokeDasharray={`${ringDash} ${RING_C}`}
           transform="rotate(-90 150 150)"
-          style={{ filter: `drop-shadow(0 0 6px ${accentGlow})`, transition: "stroke-dasharray 0.4s linear" }}
         />
 
-        {Array.from({ length: 12 }).map((_, i) => {
-          const a = (i * 30 - 90) * (Math.PI / 180);
-          const x1 = 150 + Math.cos(a) * 120;
-          const y1 = 150 + Math.sin(a) * 120;
-          const x2 = 150 + Math.cos(a) * 114;
-          const y2 = 150 + Math.sin(a) * 114;
-          return (
-            <line
-              key={i}
-              x1={x1}
-              y1={y1}
-              x2={x2}
-              y2={y2}
-              stroke="oklch(0.35 0.02 188)"
-              strokeWidth="1.2"
-              strokeLinecap="round"
-            />
-          );
-        })}
+        {CLOCK_TICKS.map((t, i) => (
+          <line
+            key={i}
+            x1={t.x1}
+            y1={t.y1}
+            x2={t.x2}
+            y2={t.y2}
+            stroke="oklch(0.35 0.02 188)"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
+        ))}
       </svg>
 
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
         <span
           className={`font-mono text-5xl font-black tabular-nums sm:text-6xl ${running ? "" : "opacity-60"}`}
-          style={{ color: accent, textShadow: `0 0 16px ${accentGlow}` }}
+          style={{ color: accent }}
         >
           {mm}:{ss}
         </span>
@@ -105,7 +106,7 @@ export function FocusClock({ pct, mm, ss, mode, running }: { pct: number; mm: st
       </div>
     </div>
   );
-}
+});
 
 export function FocusTodo({ currentAccountId }: { currentAccountId: string }) {
   const [settings, setSettings] = useState<FocusSettings>(() => loadFocusSettings(currentAccountId));
@@ -181,8 +182,17 @@ export function FocusTodo({ currentAccountId }: { currentAccountId: string }) {
 
   useEffect(() => {
     if (!running) return;
-    const id = window.setInterval(() => setNow(Date.now()), 250);
-    return () => window.clearInterval(id);
+    setNow(Date.now());
+    const align = 1000 - (Date.now() % 1000);
+    let intervalId: number | undefined;
+    const timeoutId = window.setTimeout(() => {
+      setNow(Date.now());
+      intervalId = window.setInterval(() => setNow(Date.now()), 1000);
+    }, align);
+    return () => {
+      window.clearTimeout(timeoutId);
+      if (intervalId !== undefined) window.clearInterval(intervalId);
+    };
   }, [running]);
 
   const planned = (mode === "focus" ? settings.focusMin : mode === "longBreak" ? settings.longBreakMin : settings.breakMin) * 60;
@@ -195,16 +205,22 @@ export function FocusTodo({ currentAccountId }: { currentAccountId: string }) {
   const goalPct = goalSec > 0 ? Math.min(100, (liveTodayFocusSec / goalSec) * 100) : 0;
   const sessionInProgress = sessionStartRef.current !== null;
 
+  const lastTitleRef = useRef<string>("");
   useEffect(() => {
     if (!sessionInProgress && !running) {
-      document.title = titleRef.current;
+      if (document.title !== titleRef.current) document.title = titleRef.current;
+      lastTitleRef.current = "";
       return;
     }
     const mm = Math.floor(remaining / 60).toString().padStart(2, "0");
     const ss = (remaining % 60).toString().padStart(2, "0");
     const icon = mode === "focus" ? "🎯" : mode === "longBreak" ? "🌴" : "☕";
     const label = mode === "focus" ? (task.trim() || "Focus") : mode === "longBreak" ? "Long Break" : "Break";
-    document.title = `${running ? "" : "⏸ "}${mm}:${ss} ${icon} ${label.slice(0, 28)}`;
+    const next = `${running ? "" : "⏸ "}${mm}:${ss} ${icon} ${label.slice(0, 28)}`;
+    if (next !== lastTitleRef.current) {
+      lastTitleRef.current = next;
+      document.title = next;
+    }
   }, [running, mode, task, remaining, sessionInProgress]);
 
   const commitAndAdvance = (commitSec: number, completed: boolean): { nextMode: FocusMode; nextPomos: number } => {

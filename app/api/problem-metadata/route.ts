@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const apiKey = process.env.GEMINI_API_KEY;
+const model = apiKey
+  ? new GoogleGenerativeAI(apiKey).getGenerativeModel({ model: "gemini-2.5-flash" })
+  : null;
 
 type ProblemMetadata = {
   name: string;
@@ -50,6 +52,10 @@ export async function GET(req: Request) {
 
   const base = extractBasicInfo(url);
 
+  if (!model) {
+    return NextResponse.json(base);
+  }
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
@@ -86,7 +92,7 @@ export async function GET(req: Request) {
       ${cleanedHtml}
     `;
 
-    const result = await model.generateContent(prompt);
+    const result = await model!.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
     

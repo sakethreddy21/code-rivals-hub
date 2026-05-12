@@ -20,6 +20,7 @@ import {
   Play,
   Plus,
   RefreshCw,
+  Repeat2,
   Search,
   ShieldCheck,
   Sparkles,
@@ -71,6 +72,7 @@ import {
 } from "@/lib/rivals";
 import { StatCard, MutualCard, Select } from "@/components/atoms";
 import { FocusTodo, FocusAnalytics } from "@/components/Focus";
+import { RevisionView } from "@/components/Revision";
 import { PlatformStats } from "@/components/PlatformStats";
 
 type ViewId = (typeof navItems)[number]["id"];
@@ -80,6 +82,7 @@ const navItems = [
   { id: "today-target", label: "Today Target", icon: Target },
   { id: "focus", label: "FocusTodo", icon: Timer },
   { id: "focus-analytics", label: "Focus Analytics", icon: BarChart3 },
+  { id: "revision", label: "Revision", icon: Repeat2 },
   { id: "problems", label: "My Problems", icon: BookOpenCheck },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "platform-stats", label: "Platform Stats", icon: Globe },
@@ -109,7 +112,8 @@ export default function Page() {
 
   // Auto-sync external platform stats (LeetCode/GFG). Supabase realtime covers
   // the rest of the app data, so we only poll the things that have no push channel.
-  const syncPlatformConnections = async (accountId: string) => {
+  // `force` skips the freshness check (used by manual sync button).
+  const syncPlatformConnections = async (accountId: string, force = false) => {
     const { data: connections } = await supabase
       .from("platform_connections" as any)
       .select("*")
@@ -117,9 +121,14 @@ export default function Page() {
     const myConnections = (connections ?? []) as any as PlatformConnection[];
     if (!myConnections.length) return;
 
+    const FRESH_MS = 4 * 60 * 1000;
+    const now = Date.now();
     let updated = false;
     for (const conn of myConnections) {
       try {
+        if (!force && conn.last_synced_at && now - new Date(conn.last_synced_at).getTime() < FRESH_MS) {
+          continue;
+        }
         const apiPlatform = conn.platform === "LeetCode" ? "leetcode" : "gfg";
         const res = await fetch(
           `/api/platform-stats?platform=${apiPlatform}&username=${encodeURIComponent(conn.platform_username)}`
@@ -149,20 +158,27 @@ export default function Page() {
   }, [currentAccountId]);
 
   // Periodic platform-stats refresh (external APIs — no realtime channel).
+  // Runs every 5 minutes, only when the tab is visible. The function itself
+  // skips connections that synced in the last 4 minutes, so this is cheap.
   useEffect(() => {
     if (!currentAccountId) return;
 
-    const initialTimer = setTimeout(() => {
+    const tick = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       syncPlatformConnections(currentAccountId);
-    }, 2000);
+    };
 
-    const interval = setInterval(() => {
-      syncPlatformConnections(currentAccountId);
-    }, 30000);
+    const initialTimer = setTimeout(tick, 2000);
+    const interval = setInterval(tick, 5 * 60 * 1000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       clearTimeout(initialTimer);
       clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [currentAccountId]);
 
@@ -231,7 +247,7 @@ export default function Page() {
     currentAccountId={currentAccountId} 
     data={data} 
     onRefresh={refresh} 
-    onSync={() => syncPlatformConnections(currentAccountId)}
+    onSync={() => syncPlatformConnections(currentAccountId, true)}
     onLogout={() => setCurrentAccountId(null)} 
   />;
 }
@@ -417,7 +433,7 @@ function CompetitionApp({ currentAccountId, data, onRefresh, onSync, onLogout }:
     toast.success("Logged out"); 
   };
 
-  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">The Arena</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} friend={friend} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} onSync={onSync} />}{view === "today-target" && <TodayTargetView currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} onSync={onSync} />}{view === "focus" && <FocusTodo currentAccountId={currentAccountId} />}{view === "focus-analytics" && <FocusAnalytics currentAccountId={currentAccountId} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={data.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "platform-stats" && <PlatformStats currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} />}{view === "hall-of-fame" && <HallOfFame users={users} problems={data.problems} />}{view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={users} onRefresh={onRefresh} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={users} problems={data.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
+  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">The Arena</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} friend={friend} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} onSync={onSync} />}{view === "today-target" && <TodayTargetView currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} onSync={onSync} />}{view === "focus" && <FocusTodo currentAccountId={currentAccountId} />}{view === "focus-analytics" && <FocusAnalytics currentAccountId={currentAccountId} />}{view === "revision" && <RevisionView currentAccountId={currentAccountId} problems={data.problems} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={data.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "platform-stats" && <PlatformStats currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} />}{view === "hall-of-fame" && <HallOfFame users={users} problems={data.problems} />}{view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={users} onRefresh={onRefresh} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={users} problems={data.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
 }
 
 function Header({ user, friend }: { user: MutualUser; friend: MutualUser }) {
