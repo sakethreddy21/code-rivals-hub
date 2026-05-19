@@ -3,6 +3,8 @@
 import {
   Activity,
   BarChart3,
+  Bookmark,
+  BookmarkCheck,
   BookOpenCheck,
   Coffee,
   ExternalLink,
@@ -665,7 +667,22 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [hints, setHints] = useState<Record<string, string>>({});
   const [fetchingHint, setFetchingHint] = useState<Record<string, boolean>>({});
+  const [bookmarkedLinks, setBookmarkedLinks] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(`today_target_bookmarks_${currentAccountId}`);
+      return raw ? new Set<string>(JSON.parse(raw)) : new Set<string>();
+    } catch { return new Set<string>(); }
+  });
   const userNameById = useMemo(() => new Map(users.map((u) => [u.id, `${u.emoji} ${u.name}`])), [users]);
+
+  const toggleLinkBookmark = (link: string) => {
+    setBookmarkedLinks(prev => {
+      const next = new Set(prev);
+      next.has(link) ? next.delete(link) : next.add(link);
+      localStorage.setItem(`today_target_bookmarks_${currentAccountId}`, JSON.stringify([...next]));
+      return next;
+    });
+  };
 
   const fetchTitle = async (url: string, slotKey: string | number) => {
     const trimmed = url.trim();
@@ -853,10 +870,25 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
     return () => { mounted = false; };
   }, [dayKey, currentAccountId]);
 
+  // Extract the problem slug from a URL (works for both LeetCode and GFG)
+  const extractSlug = (url: string): string => {
+    try {
+      const pathname = new URL(url.startsWith("http") ? url : `https://${url}`).pathname;
+      // Remove trailing slashes and get last meaningful segment
+      const parts = pathname.split("/").filter(Boolean);
+      // LeetCode: /problems/two-sum/ → "two-sum"
+      // GFG: /problems/sort-an-array-of-0s-1s-and-2s4231/ → "sort-an-array-of-0s-1s-and-2s4231"
+      const probIdx = parts.indexOf("problems");
+      if (probIdx !== -1 && parts[probIdx + 1]) return parts[probIdx + 1];
+      return parts[parts.length - 1] || "";
+    } catch {
+      return "";
+    }
+  };
+
   const deriveName = (url: string, idx: number) => {
     try {
-      const pathname = new URL(url).pathname;
-      const slug = pathname.split("/").filter(Boolean).pop() || "";
+      const slug = extractSlug(url);
       return slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || `Target ${idx + 1}`;
     } catch {
       return `Target ${idx + 1}`;
@@ -876,22 +908,6 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
       return "Other";
     } catch {
       return "Other";
-    }
-  };
-
-  // Extract the problem slug from a URL (works for both LeetCode and GFG)
-  const extractSlug = (url: string): string => {
-    try {
-      const pathname = new URL(url.startsWith("http") ? url : `https://${url}`).pathname;
-      // Remove trailing slashes and get last meaningful segment
-      const parts = pathname.split("/").filter(Boolean);
-      // LeetCode: /problems/two-sum/ → "two-sum"
-      // GFG: /problems/sort-an-array-of-0s-1s-and-2s4231/ → "sort-an-array-of-0s-1s-and-2s4231"
-      const probIdx = parts.indexOf("problems");
-      if (probIdx !== -1 && parts[probIdx + 1]) return parts[probIdx + 1];
-      return parts[parts.length - 1] || "";
-    } catch {
-      return "";
     }
   };
 
@@ -1406,6 +1422,18 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
                             <ExternalLink className="size-4" /> See the problem
                           </a>
                         </Button>
+                        <button
+                          type="button"
+                          title={bookmarkedLinks.has(link) ? "Remove bookmark" : "Bookmark problem"}
+                          onClick={() => toggleLinkBookmark(link)}
+                          className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-md border px-3 text-xs font-bold transition ${
+                            bookmarkedLinks.has(link)
+                              ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
+                              : "border-border bg-secondary/40 text-muted-foreground hover:border-accent/40 hover:text-accent"
+                          }`}
+                        >
+                          {bookmarkedLinks.has(link) ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
+                        </button>
                       </>
                     )}
                     {links.length > 1 && (
@@ -1548,6 +1576,18 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
                               <ExternalLink className="size-4" /> See the problem
                             </a>
                           </Button>
+                          <button
+                            type="button"
+                            title={bookmarkedLinks.has(link) ? "Remove bookmark" : "Bookmark problem"}
+                            onClick={() => toggleLinkBookmark(link)}
+                            className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-md border px-3 text-xs font-bold transition ${
+                              bookmarkedLinks.has(link)
+                                ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
+                                : "border-border bg-secondary/40 text-muted-foreground hover:border-accent/40 hover:text-accent"
+                            }`}
+                          >
+                            {bookmarkedLinks.has(link) ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
+                          </button>
                         </div>
                       </div>
 
@@ -1927,9 +1967,66 @@ function Heatmap({ currentAccountId, problems, title = "Contribution Heatmap" }:
   );
 }
 
+const DS_TOPICS = ["Arrays", "Strings", "Hashing", "Two Pointers", "Sorting", "Binary Search", "Sliding Window", "Linked List", "Stack", "Queue", "Trees", "Graphs", "Heap", "DP", "Greedy", "Backtracking", "Recursion", "Math", "Bit Manipulation", "Other"] as const;
+type DsTopic = typeof DS_TOPICS[number];
+
+function useBookmarks(storageKey: string) {
+  const [bookmarks, setBookmarks] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw ? new Set<string>(JSON.parse(raw)) : new Set<string>();
+    } catch { return new Set<string>(); }
+  });
+
+  const toggle = (id: string) => {
+    setBookmarks(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      localStorage.setItem(storageKey, JSON.stringify([...next]));
+      return next;
+    });
+  };
+  return { bookmarks, toggle };
+}
+
+function getTopicGroup(p: Problem): DsTopic {
+  const combined = `${p.topic || ""} ${p.name || ""}`.toLowerCase();
+  if (combined.includes("array")) return "Arrays";
+  if (combined.includes("graph")) return "Graphs";
+  if (combined.includes("dp") || combined.includes("dynamic")) return "DP";
+  if (combined.includes("tree")) return "Trees";
+  if (combined.includes("heap") || combined.includes("priority queue")) return "Heap";
+  if (combined.includes("sliding") || combined.includes("window")) return "Sliding Window";
+  if (combined.includes("binary search") || combined.includes("bs")) return "Binary Search";
+  if (combined.includes("backtrack")) return "Backtracking";
+  if (combined.includes("string")) return "Strings";
+  if (combined.includes("linked") || combined.includes("list")) return "Linked List";
+  if (combined.includes("stack")) return "Stack";
+  if (combined.includes("queue")) return "Queue";
+  if (combined.includes("hash") || combined.includes("map") || combined.includes("set")) return "Hashing";
+  if (combined.includes("two pointer") || combined.includes("pointer")) return "Two Pointers";
+  if (combined.includes("sort")) return "Sorting";
+  if (combined.includes("greedy")) return "Greedy";
+  if (combined.includes("recurs") || combined.includes("hanoi") || combined.includes("josephus") || combined.includes("fibonacci")) return "Recursion";
+  if (combined.includes("math") || combined.includes("number") || combined.includes("digit") || combined.includes("arithmetic") || combined.includes("modulo")) return "Math";
+  if (combined.includes("bit") || combined.includes("xor")) return "Bit Manipulation";
+  return "Other";
+}
+
+const DS_ICON_MAP: Record<string, string> = {
+  Arrays: "🔢", Graphs: "🕸️", DP: "🧠", Trees: "🌲", Heap: "⛰️",
+  "Sliding Window": "🪟", "Binary Search": "🔍", Backtracking: "↩️",
+  Strings: "🔤", "Linked List": "🔗", Stack: "📚", Queue: "🚦",
+  Hashing: "🗝️", "Two Pointers": "✌️", Sorting: "🗂️", Greedy: "🤑",
+  Recursion: "🔄", Math: "➗", "Bit Manipulation": "0️⃣", Other: "📦",
+};
+
 function MyProblems({ currentAccountId, problems }: { currentAccountId: string; problems: Problem[] }) {
   const [filter, setFilter] = useState("");
   const [diff, setDiff] = useState<"All" | "Easy" | "Medium" | "Hard">("All");
+  const [activeDs, setActiveDs] = useState<DsTopic | "All">("All");
+  const [dsSubTab, setDsSubTab] = useState<"All" | "Bookmarked">("All");
+  const { bookmarks, toggle: toggleBookmark } = useBookmarks(`bookmarks_${currentAccountId}`);
 
   const mine = useMemo(
     () => problems.filter((p) => p.accountId === currentAccountId),
@@ -1943,15 +2040,28 @@ function MyProblems({ currentAccountId, problems }: { currentAccountId: string; 
     hard: mine.filter((p) => p.difficulty === "Hard").length,
   }), [mine]);
 
-  const filtered = useMemo(() => {
+  // Group problems by DS topic
+  const byTopic = useMemo(() => {
+    const map: Partial<Record<DsTopic, Problem[]>> = {};
+    for (const p of mine) {
+      const g = getTopicGroup(p);
+      if (!map[g]) map[g] = [];
+      map[g]!.push(p);
+    }
+    return map;
+  }, [mine]);
+
+  const activeTopics = DS_TOPICS; // Show all topics as tabs so the user can see them
+
+  const applyFilters = (list: Problem[]) => {
     const q = filter.toLowerCase();
-    return mine
+    return list
       .filter((p) => diff === "All" || p.difficulty === diff)
       .filter((p) => `${p.platform} ${p.difficulty} ${p.topic} ${p.name}`.toLowerCase().includes(q))
       .sort((a, b) => new Date(b.solvedAt).getTime() - new Date(a.solvedAt).getTime());
-  }, [mine, filter, diff]);
+  };
 
-  const filters: Array<{ key: typeof diff; label: string; count: number; tone: string }> = [
+  const diffFilters: Array<{ key: typeof diff; label: string; count: number; tone: string }> = [
     { key: "All", label: "All", count: counts.total, tone: "text-foreground" },
     { key: "Easy", label: "Easy", count: counts.easy, tone: "text-green-500" },
     { key: "Medium", label: "Medium", count: counts.medium, tone: "text-yellow-500" },
@@ -1960,6 +2070,7 @@ function MyProblems({ currentAccountId, problems }: { currentAccountId: string; 
 
   return (
     <section className="animate-enter space-y-5">
+      {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-2xl font-black">My Problems</h3>
@@ -1978,30 +2089,151 @@ function MyProblems({ currentAccountId, problems }: { currentAccountId: string; 
         </label>
       </div>
 
-      <div className="inline-flex rounded-lg border border-border bg-secondary/40 p-1">
-        {filters.map((f) => (
+      <div className="flex flex-col gap-6 md:flex-row md:items-start">
+        {/* Left Sidebar (DS Topics) - 30% on desktop */}
+        <div className="flex flex-col gap-1 md:sticky md:top-24 md:w-[30%] shrink-0 max-h-[75vh] overflow-y-auto rounded-xl border border-border bg-secondary/10 p-2">
           <button
-            key={f.key}
             type="button"
-            onClick={() => setDiff(f.key)}
-            className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition ${
-              diff === f.key
+            onClick={() => { setActiveDs("All"); setDsSubTab("All"); }}
+            className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-bold transition ${
+              activeDs === "All"
                 ? "bg-primary text-primary-foreground shadow-glow"
-                : `${f.tone} hover:bg-secondary`
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
-            {f.label}
-            <span className={`rounded-full px-1.5 text-[10px] ${diff === f.key ? "bg-primary-foreground/20" : "bg-secondary"}`}>{f.count}</span>
+            <span className="flex items-center gap-3">📋 All Topics</span>
+            <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${activeDs === "All" ? "bg-white/20" : "bg-secondary"}`}>{counts.total}</span>
           </button>
-        ))}
-      </div>
+          
+          <div className="my-2 h-px bg-border/50" />
+          
+          {activeTopics.map(t => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => { setActiveDs(t); setDsSubTab("All"); }}
+              className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-bold transition ${
+                activeDs === t
+                  ? "bg-primary text-primary-foreground shadow-glow"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              <span className="flex items-center gap-3"><span className="text-lg leading-none">{DS_ICON_MAP[t]}</span> {t}</span>
+              <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${activeDs === t ? "bg-white/20" : "bg-secondary"}`}>{byTopic[t]?.length ?? 0}</span>
+            </button>
+          ))}
+        </div>
 
-      <ProblemList problems={filtered} />
+        {/* Right Content (Problems & Filters) - 70% on desktop */}
+        <div className="flex-1 min-w-0 space-y-6">
+          {/* Bookmarked sub-tab + Difficulty filter row */}
+          <div className="flex flex-wrap items-center gap-3">
+            {activeDs !== "All" && (
+              <div className="flex items-center gap-1 rounded-lg border border-border bg-secondary/30 p-1">
+                {(["All", "Bookmarked"] as const).map(tab => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setDsSubTab(tab)}
+                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${
+                      dsSubTab === tab
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:bg-secondary"
+                    }`}
+                  >
+                    {tab === "Bookmarked" && <Bookmark className="size-3" />}
+                    {tab}
+                    {tab === "Bookmarked" && (
+                      <span className="rounded-full bg-accent/20 px-1.5 text-[10px]">
+                        {(byTopic[activeDs as DsTopic] ?? []).filter(p => bookmarks.has(p.id)).length}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-secondary/30 p-1">
+              {diffFilters.map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setDiff(f.key)}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${
+                    diff === f.key
+                      ? "bg-primary text-primary-foreground shadow-glow"
+                      : `${f.tone} hover:bg-secondary`
+                  }`}
+                >
+                  {f.label}
+                  <span className={`rounded-full px-1.5 text-[10px] ${diff === f.key ? "bg-primary-foreground/20" : "bg-secondary"}`}>{f.count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Problems — grouped with section headings when All Topics */}
+          {activeDs === "All" ? (
+            <div className="space-y-8">
+              {activeTopics.map(topic => {
+                const list = applyFilters(
+                  (byTopic[topic] ?? []).filter(p => dsSubTab === "Bookmarked" ? bookmarks.has(p.id) : true)
+                );
+                if (list.length === 0) return null;
+                return (
+                  <div key={topic}>
+                    {/* Section heading */}
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2">
+                        <span className="text-lg">{DS_ICON_MAP[topic]}</span>
+                        <span className="text-base font-black text-primary">{topic}</span>
+                        <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[11px] font-black text-primary">{list.length}</span>
+                      </div>
+                      <div className="h-px flex-1 bg-border/60" />
+                    </div>
+                    <ProblemList problems={list} bookmarks={bookmarks} onToggleBookmark={toggleBookmark} />
+                  </div>
+                );
+              })}
+              {mine.length === 0 && (
+                <div className="glass-panel rounded-xl p-10 text-center text-sm text-muted-foreground">
+                  No problems yet. Start solving!
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              {/* Section heading for selected DS */}
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2">
+                  <span className="text-lg">{DS_ICON_MAP[activeDs]}</span>
+                  <span className="text-base font-black text-primary">{activeDs}</span>
+                  <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[11px] font-black text-primary">
+                    {(byTopic[activeDs as DsTopic] ?? []).length}
+                  </span>
+                  {dsSubTab === "Bookmarked" && (
+                    <span className="flex items-center gap-1 rounded-full bg-accent/20 px-2 py-0.5 text-[11px] font-black text-accent">
+                      <Bookmark className="size-3" /> Bookmarked
+                    </span>
+                  )}
+                </div>
+                <div className="h-px flex-1 bg-border/60" />
+              </div>
+              <ProblemList
+                problems={applyFilters(
+                  (byTopic[activeDs as DsTopic] ?? []).filter(p => dsSubTab === "Bookmarked" ? bookmarks.has(p.id) : true)
+                )}
+                bookmarks={bookmarks}
+                onToggleBookmark={toggleBookmark}
+              />
+            </div>
+          )}
+        </div>
+      </div>
     </section>
   );
 }
 
-function ProblemList({ problems }: { problems: Problem[] }) {
+function ProblemList({ problems, bookmarks, onToggleBookmark }: { problems: Problem[]; bookmarks?: Set<string>; onToggleBookmark?: (id: string) => void }) {
   const [viewingCode, setViewingCode] = useState<string | null>(null);
 
   if (problems.length === 0) {
@@ -2021,47 +2253,66 @@ function ProblemList({ problems }: { problems: Problem[] }) {
   return (
     <>
       <ul className="space-y-2">
-        {problems.map((p) => (
-          <li
-            key={p.id}
-            className={`group flex items-center gap-4 rounded-xl border border-border border-l-[3px] ${borderByDiff[p.difficulty] ?? ""} bg-card/50 px-4 py-3 transition hover:-translate-y-px hover:border-primary/40 hover:bg-card`}
-          >
-            <div className="min-w-0 flex-1">
-              {p.link ? (
-                <a
-                  href={p.link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex max-w-full items-center gap-1.5 text-sm font-semibold transition hover:text-primary"
-                >
-                  <span className="truncate">{p.name}</span>
-                  <ExternalLink className="size-3 shrink-0 opacity-0 transition group-hover:opacity-60" />
-                </a>
-              ) : (
-                <span className="block truncate text-sm font-semibold">{p.name}</span>
-              )}
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-                <span className="font-bold uppercase tracking-wider">{p.platform}</span>
-                <span className="opacity-50">·</span>
-                <span className="font-semibold text-primary">{p.topic}</span>
-                <span className="opacity-50">·</span>
-                <span>{p.timeTaken}m</span>
-                <span className="opacity-50">·</span>
-                <span>{new Date(p.solvedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+        {problems.map((p) => {
+          const isBookmarked = bookmarks?.has(p.id) ?? false;
+          return (
+            <li
+              key={p.id}
+              className={`group flex items-center gap-4 rounded-xl border border-border border-l-[3px] ${borderByDiff[p.difficulty] ?? ""} bg-card/50 px-4 py-3 transition hover:-translate-y-px hover:border-primary/40 hover:bg-card`}
+            >
+              <div className="min-w-0 flex-1">
+                {p.link ? (
+                  <a
+                    href={p.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex max-w-full items-center gap-1.5 text-sm font-semibold transition hover:text-primary"
+                  >
+                    <span className="truncate">{p.name}</span>
+                    <ExternalLink className="size-3 shrink-0 opacity-0 transition group-hover:opacity-60" />
+                  </a>
+                ) : (
+                  <span className="block truncate text-sm font-semibold">{p.name}</span>
+                )}
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                  <span className="font-bold uppercase tracking-wider">{p.platform}</span>
+                  <span className="opacity-50">·</span>
+                  <span className="font-semibold text-primary">{p.topic}</span>
+                  <span className="opacity-50">·</span>
+                  <span>{p.timeTaken}m</span>
+                  <span className="opacity-50">·</span>
+                  <span>{new Date(p.solvedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                </div>
               </div>
-            </div>
-            {p.code && (
-              <button
-                type="button"
-                onClick={() => setViewingCode(p.code!)}
-                title="View solution"
-                className="shrink-0 rounded-md border border-border p-2 text-muted-foreground transition hover:border-primary/40 hover:text-primary"
-              >
-                <BookOpenCheck className="size-4" />
-              </button>
-            )}
-          </li>
-        ))}
+              <div className="flex shrink-0 items-center gap-1.5">
+                {onToggleBookmark && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleBookmark(p.id)}
+                    title={isBookmarked ? "Remove bookmark" : "Bookmark this problem"}
+                    className={`rounded-md border p-2 transition ${
+                      isBookmarked
+                        ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
+                        : "border-border text-muted-foreground hover:border-accent/40 hover:text-accent"
+                    }`}
+                  >
+                    {isBookmarked ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
+                  </button>
+                )}
+                {p.code && (
+                  <button
+                    type="button"
+                    onClick={() => setViewingCode(p.code!)}
+                    title="View solution"
+                    className="rounded-md border border-border p-2 text-muted-foreground transition hover:border-primary/40 hover:text-primary"
+                  >
+                    <BookOpenCheck className="size-4" />
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
 
       {viewingCode && (
