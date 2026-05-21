@@ -5,7 +5,9 @@ import {
   BarChart3,
   Bookmark,
   BookmarkCheck,
+  BookOpen,
   BookOpenCheck,
+  ChevronDown,
   Coffee,
   ExternalLink,
   Flame,
@@ -23,6 +25,7 @@ import {
   Plus,
   RefreshCw,
   Repeat2,
+  RotateCcw,
   Search,
   ShieldCheck,
   Sparkles,
@@ -33,6 +36,7 @@ import {
   Trophy,
   User,
   UserPlus,
+  X,
   Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -543,28 +547,6 @@ function TodayTargetView({ currentAccountId, data, users, onRefresh, onSync }: {
   const user = users.find((item) => item.id === currentAccountId)!;
   const [presence, setPresence] = useState<Record<string, any>>({});
 
-  const dayKey = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-  const goalStorageKey = `today_target_goal_${dayKey}_${currentAccountId}`;
-  const [goal, setGoal] = useState<number>(4);
-  const [goalLoaded, setGoalLoaded] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem(goalStorageKey);
-    if (stored) {
-      const n = Number(stored);
-      if (Number.isFinite(n) && n > 0) setGoal(n);
-    }
-    setGoalLoaded(true);
-  }, [goalStorageKey]);
-
-  useEffect(() => {
-    if (!goalLoaded) return;
-    localStorage.setItem(goalStorageKey, String(goal));
-  }, [goal, goalLoaded, goalStorageKey]);
-
   useEffect(() => {
     const channel = supabase
       .channel('today_target_presence')
@@ -591,10 +573,6 @@ function TodayTargetView({ currentAccountId, data, users, onRefresh, onSync }: {
     onSync();
   }, []);
 
-  const solvedToday = userStats(data.problems, currentAccountId).today;
-  const goalPct = goal > 0 ? Math.min(100, Math.round((solvedToday / goal) * 100)) : 0;
-  const goalHit = solvedToday >= goal && goal > 0;
-
   return (
     <section className="animate-enter space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -602,51 +580,32 @@ function TodayTargetView({ currentAccountId, data, users, onRefresh, onSync }: {
         <p className="text-xs text-muted-foreground">Post 4 links and race.</p>
       </div>
 
-      <div className="glass-panel rounded-2xl p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground">
-            <Target className="size-3.5 text-primary" /> Today's Goal
-          </div>
-          <p className="text-xs">
-            <span className={`font-black ${goalHit ? "text-green-400" : "text-primary"}`}>{solvedToday}</span>
-            <span className="text-muted-foreground"> / {goal} solved · {goalPct}%</span>
-            {goalHit && <span className="ml-2 font-bold text-green-400">🔥 Goal hit!</span>}
-          </p>
-        </div>
-        <div className="mt-3 flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="size-9 shrink-0 rounded-lg border border-border bg-secondary/40 hover:bg-secondary" onClick={() => setGoal((g) => Math.max(1, g - 1))} aria-label="Decrease goal">
-            <span className="text-lg font-black">−</span>
-          </Button>
-          <input
-            type="number"
-            min={1}
-            max={50}
-            value={goal}
-            onChange={(e) => {
-              const n = Number(e.target.value);
-              if (Number.isFinite(n)) setGoal(Math.max(1, Math.min(50, n)));
-            }}
-            className="h-11 w-20 rounded-lg border border-input bg-background/70 text-center font-mono text-2xl font-black tabular-nums outline-none focus:ring-2 focus:ring-primary/30"
-          />
-          <Button variant="ghost" size="icon" className="size-9 shrink-0 rounded-lg border border-border bg-secondary/40 hover:bg-secondary" onClick={() => setGoal((g) => Math.min(50, g + 1))} aria-label="Increase goal">
-            <span className="text-lg font-black">+</span>
-          </Button>
-          <span className="ml-1 text-xs font-semibold text-muted-foreground">problems today</span>
-        </div>
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary/40">
-          <div
-            className={`h-full transition-all duration-1000 ease-out ${goalHit ? "bg-green-500" : "bg-gradient-to-r from-primary via-accent to-primary shadow-glow"}`}
-            style={{ width: `${goalPct}%` }}
-          />
-        </div>
-      </div>
+      <TodayTarget
+        currentAccountId={currentAccountId}
+        users={users}
+        onRefresh={onRefresh}
+        data={data}
+        presence={presence}
+      />
 
-      <TodayTarget currentAccountId={currentAccountId} users={users} onRefresh={onRefresh} data={data} presence={presence} />
+      <TodayRevisionPanel currentAccountId={currentAccountId} problems={data.problems} />
     </section>
   );
 }
 
-function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { currentAccountId: string; users: MutualUser[]; onRefresh?: () => Promise<void>; data?: AppData; presence: Record<string, any> }) {
+function TodayTarget({
+  currentAccountId,
+  users,
+  onRefresh,
+  data,
+  presence,
+}: {
+  currentAccountId: string;
+  users: MutualUser[];
+  onRefresh?: () => Promise<void>;
+  data?: AppData;
+  presence: Record<string, any>;
+}) {
   const dayKey = useMemo(() => {
     const d = new Date();
     const y = d.getFullYear();
@@ -911,8 +870,61 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
     }
   };
 
+  // URL Normalization Helper
+  const normalizeUrl = (url: string | undefined | null): string => {
+    if (!url) return "";
+    let clean = url.trim().toLowerCase();
+    
+    if (!clean.startsWith("http://") && !clean.startsWith("https://")) {
+      clean = "https://" + clean;
+    }
+    
+    try {
+      const parsed = new URL(clean);
+      let host = parsed.hostname;
+      if (host.startsWith("www.")) {
+        host = host.substring(4);
+      }
+      let path = parsed.pathname;
+      path = path.replace(/\/+$/, "");
+      return `${host}${path}`;
+    } catch {
+      let fallback = url.trim().toLowerCase();
+      fallback = fallback.replace(/^(https?:\/\/)?(www\.)?/, "");
+      fallback = fallback.replace(/\/+$/, "");
+      fallback = fallback.split("?")[0] || "";
+      return fallback;
+    }
+  };
+
   // Auto-mark problems as solved when they match platform submissions
   const pendingAutoSave = useRef(false);
+  const isAutoSaving = useRef(false);
+
+  // Latest refs to prevent React stale closure bugs inside async setTimeout callbacks
+  const latestProblemsRef = useRef(data?.problems);
+  latestProblemsRef.current = data?.problems;
+
+  const latestAlreadyLoggedRef = useRef(alreadyLogged);
+  latestAlreadyLoggedRef.current = alreadyLogged;
+
+  const latestLinksRef = useRef(links);
+  latestLinksRef.current = links;
+
+  const latestSolvedDraftRef = useRef(solvedDraft);
+  latestSolvedDraftRef.current = solvedDraft;
+
+  const latestCarryOverLinksRef = useRef(carryOverLinks);
+  latestCarryOverLinksRef.current = carryOverLinks;
+
+  const latestCarryOverSolvedDraftRef = useRef(carryOverSolvedDraft);
+  latestCarryOverSolvedDraftRef.current = carryOverSolvedDraft;
+
+  const latestSolvedMetaRef = useRef(solvedMeta);
+  latestSolvedMetaRef.current = solvedMeta;
+
+  // Unified concurrency lock shared between manual save and auto-save
+  const isSavingInProgressRef = useRef(false);
 
   useEffect(() => {
     if (!data?.platformConnections?.length) return;
@@ -975,40 +987,63 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
 
   // Auto-save when problems are auto-marked as solved
   useEffect(() => {
-    if (!pendingAutoSave.current) return;
+    if (!pendingAutoSave.current || isSavingInProgressRef.current) return;
     pendingAutoSave.current = false;
-
+ 
     // Small delay to let state settle, then trigger saveProgress
     const timer = setTimeout(async () => {
+      if (isSavingInProgressRef.current) return;
+      isSavingInProgressRef.current = true;
+      isAutoSaving.current = true;
+
+      const currentProblems = latestProblemsRef.current;
+      const currentAlreadyLogged = latestAlreadyLoggedRef.current;
+      const currentLinks = latestLinksRef.current;
+      const currentSolvedDraft = latestSolvedDraftRef.current;
+      const currentCarryOverLinks = latestCarryOverLinksRef.current;
+      const currentCarryOverSolvedDraft = latestCarryOverSolvedDraftRef.current;
+      const currentSolvedMeta = latestSolvedMetaRef.current;
+
       // Inline save logic for auto-detected problems
       const cleaned: Record<string, boolean> = {};
-      for (let slot = 0; slot < links.length; slot++) {
-        cleaned[String(slot)] = !!solvedDraft[String(slot)];
+      for (let slot = 0; slot < currentLinks.length; slot++) {
+        cleaned[String(slot)] = !!currentSolvedDraft[String(slot)];
       }
-
+ 
       const carryCleaned: Record<string, boolean> = {};
-      for (const co of carryOverLinks) {
+      for (const co of currentCarryOverLinks) {
         const key = `${co.day}_${co.slot}`;
-        carryCleaned[key] = !!carryOverSolvedDraft[key];
+        carryCleaned[key] = !!currentCarryOverSolvedDraft[key];
       }
-
-      const newAlreadyLogged = { ...alreadyLogged };
+ 
+      const newAlreadyLogged = { ...currentAlreadyLogged };
       let newlyLoggedCount = 0;
-
+      const insertedUrls = new Set<string>();
+ 
       try {
         // Save to localStorage
         const localKey = `today_target_solved_${dayKey}_${currentAccountId}`;
         localStorage.setItem(localKey, JSON.stringify(cleaned));
-
+ 
         const carryLocalKey = `carry_over_solved_${currentAccountId}`;
         localStorage.setItem(carryLocalKey, JSON.stringify(carryCleaned));
-
+ 
         // Log newly solved problems to the problems table
-        for (let slot = 0; slot < links.length; slot++) {
+        for (let slot = 0; slot < currentLinks.length; slot++) {
           const slotKey = String(slot);
-          const link = links[slot]?.trim();
-          if (cleaned[slotKey] && link && !alreadyLogged[slotKey]) {
-            const meta = solvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
+          const link = currentLinks[slot]?.trim();
+          if (cleaned[slotKey] && link && !currentAlreadyLogged[slotKey]) {
+            const normLink = normalizeUrl(link);
+            // Deduplicate against database history and already inserted items in this run to prevent duplicates
+            const exists = insertedUrls.has(normLink) || currentProblems?.some(
+              (p) => p.accountId === currentAccountId && normalizeUrl(p.link) === normLink
+            );
+            if (exists) {
+              newAlreadyLogged[slotKey] = true;
+              continue;
+            }
+
+            const meta = currentSolvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
             const { error } = await supabase.from("problems" as any).insert({
               account_id: currentAccountId,
               name: deriveName(link, slot),
@@ -1021,16 +1056,27 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
             });
             if (!error) {
               newAlreadyLogged[slotKey] = true;
+              insertedUrls.add(normLink);
               newlyLoggedCount++;
             }
           }
         }
-
-        for (const co of carryOverLinks) {
+ 
+        for (const co of currentCarryOverLinks) {
           const slotKey = `${co.day}_${co.slot}`;
           const link = co.link.trim();
-          if (carryCleaned[slotKey] && link && !alreadyLogged[slotKey]) {
-            const meta = solvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
+          if (carryCleaned[slotKey] && link && !currentAlreadyLogged[slotKey]) {
+            const normLink = normalizeUrl(link);
+            // Deduplicate against database history and already inserted items in this run to prevent duplicates
+            const exists = insertedUrls.has(normLink) || currentProblems?.some(
+              (p) => p.accountId === currentAccountId && normalizeUrl(p.link) === normLink
+            );
+            if (exists) {
+              newAlreadyLogged[slotKey] = true;
+              continue;
+            }
+
+            const meta = currentSolvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
             const { error } = await supabase.from("problems" as any).insert({
               account_id: currentAccountId,
               name: deriveName(link, co.slot),
@@ -1043,52 +1089,56 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
             });
             if (!error) {
               newAlreadyLogged[slotKey] = true;
+              insertedUrls.add(normLink);
               newlyLoggedCount++;
             }
           }
         }
-
+ 
         // Save solved state
         const loggedKey = `today_target_logged_${dayKey}_${currentAccountId}`;
         localStorage.setItem(loggedKey, JSON.stringify(newAlreadyLogged));
         setAlreadyLogged(newAlreadyLogged);
-
+ 
         // Persist to Supabase
-        const rows = links.map((_, slot) => ({
+        const rows = currentLinks.map((_, slot) => ({
           day: dayKey,
           slot,
           account_id: currentAccountId,
           solved: !!cleaned[String(slot)],
           solved_at: cleaned[String(slot)] ? new Date().toISOString() : null,
         }));
-
-        const carryRows = carryOverLinks.map(co => ({
+ 
+        const carryRows = currentCarryOverLinks.map(co => ({
           day: co.day,
           slot: co.slot,
           account_id: currentAccountId,
           solved: !!carryCleaned[`${co.day}_${co.slot}`],
           solved_at: carryCleaned[`${co.day}_${co.slot}`] ? new Date().toISOString() : null,
         }));
-
+ 
         const allRows = [...rows, ...carryRows];
-
+ 
         await (supabase as any)
           .from("today_target_solutions")
           .upsert(allRows, { onConflict: "day,slot,account_id" });
-
+ 
         if (newlyLoggedCount > 0) {
           toast.success(`✅ Auto-saved ${newlyLoggedCount} solved problem${newlyLoggedCount > 1 ? "s" : ""}!`);
         }
-
+ 
         // Remove successfully saved carry-overs from the state so they disappear from the UI
         setCarryOverLinks(prev => prev.filter(co => !carryCleaned[`${co.day}_${co.slot}`]));
-
+ 
         await onRefresh?.();
       } catch (e) {
         console.error("Auto-save error:", e);
+      } finally {
+        isAutoSaving.current = false;
+        isSavingInProgressRef.current = false;
       }
     }, 500);
-
+ 
     return () => clearTimeout(timer);
   }, [solvedDraft, carryOverSolvedDraft]);
 
@@ -1112,20 +1162,32 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
   };
 
   const saveProgress = async () => {
+    if (isSavingInProgressRef.current) return;
+    isSavingInProgressRef.current = true;
+    setSaveProgressBusy(true);
+
+    const currentProblems = latestProblemsRef.current;
+    const currentAlreadyLogged = latestAlreadyLoggedRef.current;
+    const currentLinks = latestLinksRef.current;
+    const currentSolvedDraft = latestSolvedDraftRef.current;
+    const currentCarryOverLinks = latestCarryOverLinksRef.current;
+    const currentCarryOverSolvedDraft = latestCarryOverSolvedDraftRef.current;
+    const currentSolvedMeta = latestSolvedMetaRef.current;
+
     const cleaned: Record<string, boolean> = {};
-    for (let slot = 0; slot < links.length; slot++) {
-      cleaned[String(slot)] = !!solvedDraft[String(slot)];
+    for (let slot = 0; slot < currentLinks.length; slot++) {
+      cleaned[String(slot)] = !!currentSolvedDraft[String(slot)];
     }
 
     const carryCleaned: Record<string, boolean> = {};
-    for (const co of carryOverLinks) {
+    for (const co of currentCarryOverLinks) {
       const key = `${co.day}_${co.slot}`;
-      carryCleaned[key] = !!carryOverSolvedDraft[key];
+      carryCleaned[key] = !!currentCarryOverSolvedDraft[key];
     }
 
-    setSaveProgressBusy(true);
-    const newAlreadyLogged = { ...alreadyLogged };
+    const newAlreadyLogged = { ...currentAlreadyLogged };
     let newlyLoggedCount = 0;
+    const insertedUrls = new Set<string>();
 
     try {
       const localKey = `today_target_solved_${dayKey}_${currentAccountId}`;
@@ -1134,11 +1196,21 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
       const carryLocalKey = `carry_over_solved_${currentAccountId}`;
       localStorage.setItem(carryLocalKey, JSON.stringify(carryCleaned));
 
-      for (let slot = 0; slot < links.length; slot++) {
+      for (let slot = 0; slot < currentLinks.length; slot++) {
         const slotKey = String(slot);
-        const link = links[slot]?.trim();
-        if (cleaned[slotKey] && link && !alreadyLogged[slotKey]) {
-          const meta = solvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
+        const link = currentLinks[slot]?.trim();
+        if (cleaned[slotKey] && link && !currentAlreadyLogged[slotKey]) {
+          const normLink = normalizeUrl(link);
+          // Deduplicate against database history and already inserted items in this run to prevent duplicates
+          const exists = insertedUrls.has(normLink) || currentProblems?.some(
+            (p) => p.accountId === currentAccountId && normalizeUrl(p.link) === normLink
+          );
+          if (exists) {
+            newAlreadyLogged[slotKey] = true;
+            continue;
+          }
+
+          const meta = currentSolvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
           const { error } = await supabase.from("problems" as any).insert({
             account_id: currentAccountId,
             name: deriveName(link, slot),
@@ -1151,16 +1223,27 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
           });
           if (!error) {
             newAlreadyLogged[slotKey] = true;
+            insertedUrls.add(normLink);
             newlyLoggedCount++;
           }
         }
       }
-
-      for (const co of carryOverLinks) {
+ 
+      for (const co of currentCarryOverLinks) {
         const slotKey = `${co.day}_${co.slot}`;
         const link = co.link.trim();
-        if (carryCleaned[slotKey] && link && !alreadyLogged[slotKey]) {
-          const meta = solvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
+        if (carryCleaned[slotKey] && link && !currentAlreadyLogged[slotKey]) {
+          const normLink = normalizeUrl(link);
+          // Deduplicate against database history and already inserted items in this run to prevent duplicates
+          const exists = insertedUrls.has(normLink) || currentProblems?.some(
+            (p) => p.accountId === currentAccountId && normalizeUrl(p.link) === normLink
+          );
+          if (exists) {
+            newAlreadyLogged[slotKey] = true;
+            continue;
+          }
+
+          const meta = currentSolvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
           const { error } = await supabase.from("problems" as any).insert({
             account_id: currentAccountId,
             name: deriveName(link, co.slot),
@@ -1173,6 +1256,7 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
           });
           if (!error) {
             newAlreadyLogged[slotKey] = true;
+            insertedUrls.add(normLink);
             newlyLoggedCount++;
           }
         }
@@ -1182,7 +1266,7 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
       localStorage.setItem(loggedKey, JSON.stringify(newAlreadyLogged));
       setAlreadyLogged(newAlreadyLogged);
 
-      const rows = links.map((_, slot) => ({
+      const rows = currentLinks.map((_, slot) => ({
         day: dayKey,
         slot,
         account_id: currentAccountId,
@@ -1190,7 +1274,7 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
         solved_at: cleaned[String(slot)] ? new Date().toISOString() : null,
       }));
 
-      const carryRows = carryOverLinks.map(co => ({
+      const carryRows = currentCarryOverLinks.map(co => ({
         day: co.day,
         slot: co.slot,
         account_id: currentAccountId,
@@ -1211,7 +1295,6 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
             ? "Too many target links! Database limit reached." 
             : error.message 
         });
-        // Still saved locally, so we don't return
       } else {
         if (newlyLoggedCount > 0) {
           toast.success(`Progress saved · ${newlyLoggedCount} problem${newlyLoggedCount > 1 ? "s" : ""} logged!`);
@@ -1225,10 +1308,10 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
       await onRefresh?.();
 
       // Squad Goals Celebration Check
-      const totalTargets = links.filter(l => l.trim()).length;
+      const totalTargets = currentLinks.filter(l => l.trim()).length;
       if (totalTargets > 0) {
         const everyoneSolvedAll = users.every(u => {
-          const solvedCount = links.filter((link, slot) => {
+          const solvedCount = currentLinks.filter((link, slot) => {
             if (!link.trim()) return false;
             return u.id === currentAccountId 
               ? !!cleaned[String(slot)] 
@@ -1252,6 +1335,7 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
       }
     } finally {
       setSaveProgressBusy(false);
+      isSavingInProgressRef.current = false;
     }
   };
 
@@ -1305,7 +1389,6 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
 
   const difficultyTabs = ["Easy", "Medium", "Hard"] as const;
   const timeTabs = [{ label: "15m", value: "15" }, { label: "30m", value: "30" }, { label: "45m", value: "45" }, { label: "60m", value: "60" }] as const;
-
   const activePresenceCount = Object.keys(presence).length;
   const totalSlotsWithLinks = links.filter(l => l.trim()).length;
   const totalPossibleSolves = totalSlotsWithLinks * users.length;
@@ -1314,29 +1397,13 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
 
   return (
     <div className="space-y-6">
-      {totalSlotsWithLinks > 0 && (
-        <div className="glass-panel overflow-hidden rounded-2xl p-1">
-          <div className="flex items-center justify-between px-4 py-2">
-            <div className="flex items-center gap-2">
-              <div className="flex h-2 w-2 animate-pulse rounded-full bg-green-500" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Squad Progress</span>
-            </div>
-            <span className="text-[10px] font-black text-primary">{squadProgress}% COMPLETE</span>
-          </div>
-          <div className="h-1.5 w-full bg-secondary/30">
-            <div 
-              className="h-full bg-gradient-to-r from-primary via-accent to-primary shadow-glow transition-all duration-1000 ease-out" 
-              style={{ width: `${squadProgress}%` }}
-            />
-          </div>
-        </div>
-      )}
-
+      
+      {/* ── Minimalist Header & Live multiplayer Standings ─────────────────── */}
       <div className="glass-panel rounded-2xl p-5">
-        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-border/40 pb-4 mb-6">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-2xl font-black">Today Target</h3>
+              <h3 className="text-2xl font-black tracking-tight">Today's Targets</h3>
               {activePresenceCount > 1 && (
                 <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary">
                   <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary" />
@@ -1344,16 +1411,45 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
                 </div>
               )}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">Shared notice board. Changes are auto-saved. Mark solved to log progress.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Add your targets below. Mark solved to auto-detect and log.
+            </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button variant="rival" onClick={saveProgress} disabled={saveProgressBusy}>
-              {saveProgressBusy ? <Loader2 className="animate-spin" /> : <Zap />} Save My Progress
-            </Button>
+
+          {/* Standings Row — multiplayer indicator pills */}
+          <div className="flex flex-wrap gap-2 items-center">
+            {users.map((u) => {
+              const count = links.filter((_, slot) => allSolved[String(slot)]?.has(u.id)).length;
+              const total = links.filter((l) => l.trim()).length;
+              const isOnline = Object.values(presence).flat().some(p => (p as any).id === u.id);
+              const isSelf = u.id === currentAccountId;
+              return (
+                <div
+                  key={u.id}
+                  className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
+                    isSelf 
+                      ? "border-primary/40 bg-primary/10 text-primary shadow-glow-sm" 
+                      : "border-border bg-card/60 text-foreground"
+                  }`}
+                >
+                  <span className="relative flex h-2 w-2">
+                    {isOnline && (
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
+                    )}
+                    <span className={`relative inline-flex h-2 w-2 rounded-full ${isOnline ? "bg-green-500" : "bg-neutral-600"}`}></span>
+                  </span>
+                  <span>{u.emoji} {u.name}</span>
+                  <span className="font-mono font-black bg-background/50 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground">
+                    {count}/{total}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        <div className="mt-5 grid gap-4">
+        {/* ── Interactive slots list ────────────────────────────────────────── */}
+        <div className="grid gap-6">
           {links.map((link, idx) => {
             const slotKey = String(idx);
             const isSolved = !!solvedDraft[slotKey];
@@ -1361,7 +1457,7 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
             const meta = solvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
 
             return (
-              <div key={idx} className="grid gap-2">
+              <div key={idx} className="grid gap-2 border-b border-border/30 pb-5 last:border-0 last:pb-0">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <div className="relative flex-1">
                     <input
@@ -1373,7 +1469,7 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
                       }}
                       onBlur={() => link.trim() && fetchTitle(link, idx)}
                       className="h-11 w-full rounded-lg border border-input bg-background/70 px-3 pr-28 outline-none focus:ring-2 focus:ring-primary/30"
-                      placeholder={`Target ${idx + 1} link`}
+                      placeholder={`Target ${idx + 1} link (e.g. LeetCode / GFG)`}
                     />
                     {fetchedTitles[slotKey] && link.trim() && (
                       <div className="mt-1.5 flex items-center gap-2 px-1">
@@ -1511,217 +1607,556 @@ function TodayTarget({ currentAccountId, users, onRefresh, data, presence }: { c
               </div>
             );
           })}
+        </div>
+
+        {/* ── bottom action row ────────────────────────────────────────────── */}
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-border/40 pt-5">
           <Button 
             variant="outline" 
-            className="w-full border-dashed py-8 text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all"
+            className="border-dashed text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all h-10 px-4"
             onClick={() => setLinks([...links, ""])}
           >
-            <Plus className="mr-2 size-5" /> Add another target problem
+            <Plus className="mr-1.5 size-4" /> Add another target
           </Button>
 
-          {carryOverLinks.length > 0 && (
-            <div className="mt-8 border-t border-border pt-6">
-              <h4 className="mb-4 text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                <Flame className="size-4 text-orange-500" />
-                Your Carry-Over Targets
-              </h4>
-              <div className="grid gap-4">
-                {carryOverLinks.map((co, idx) => {
-                  const slotKey = `${co.day}_${co.slot}`;
-                  const isSolved = !!carryOverSolvedDraft[slotKey];
-                  const isLogged = !!alreadyLogged[slotKey];
-                  const meta = solvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
-                  const link = co.link;
+          <Button variant="rival" className="h-10 font-bold" onClick={saveProgress} disabled={saveProgressBusy}>
+            {saveProgressBusy ? <Loader2 className="animate-spin mr-1.5 size-4" /> : <Zap className="mr-1.5 size-4" />} 
+            Save My Progress
+          </Button>
+        </div>
 
-                  return (
-                    <div key={slotKey} className="grid gap-2 opacity-90 transition-opacity hover:opacity-100">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <div className="relative flex-1">
-                          <input
-                            readOnly
-                            value={link}
-                            className="h-11 w-full rounded-lg border border-input bg-background/50 px-3 pr-28 outline-none"
-                          />
-                          {fetchedTitles[slotKey] && link.trim() && (
-                            <div className="mt-1.5 flex items-center gap-2 px-1">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20">
-                                {fetchedTitles[slotKey].platform}
-                              </span>
-                              <span className="text-xs font-bold truncate max-w-[200px] text-muted-foreground">
-                                {fetchedTitles[slotKey].name}
-                              </span>
+        {/* ── Carry-overs section ──────────────────────────────────────────── */}
+        {carryOverLinks.length > 0 && (
+          <div className="mt-8 border-t border-border/40 pt-6 animate-in fade-in duration-500">
+            <h4 className="mb-4 text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+              <Flame className="size-4 text-orange-500" />
+              Carry-Over Targets
+            </h4>
+            <div className="grid gap-4">
+              {carryOverLinks.map((co) => {
+                const slotKey = `${co.day}_${co.slot}`;
+                const isSolved = !!carryOverSolvedDraft[slotKey];
+                const isLogged = !!alreadyLogged[slotKey];
+                const meta = solvedMeta[slotKey] ?? { difficulty: "Medium", timeTaken: "25" };
+                const link = co.link;
+
+                return (
+                  <div key={slotKey} className="grid gap-2 opacity-90 transition-opacity hover:opacity-100">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <div className="relative flex-1">
+                        <input
+                          readOnly
+                          value={link}
+                          className="h-11 w-full rounded-lg border border-input bg-background/50 px-3 pr-28 outline-none"
+                        />
+                        {fetchedTitles[slotKey] && link.trim() && (
+                          <div className="mt-1.5 flex items-center gap-2 px-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20">
+                              {fetchedTitles[slotKey].platform}
+                            </span>
+                            <span className="text-xs font-bold truncate max-w-[200px] text-muted-foreground">
+                              {fetchedTitles[slotKey].name}
+                            </span>
+                          </div>
+                        )}
+                        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                          {isSolved && !isLogged && (
+                            <div className="hidden items-center gap-1.5 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-bold text-green-400 sm:flex">
+                              <CheckCircle2 className="size-3" />
+                              SYNCED
                             </div>
                           )}
-                          <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-2">
-                            {isSolved && !isLogged && (
-                              <div className="hidden items-center gap-1.5 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-bold text-green-400 sm:flex">
-                                <CheckCircle2 className="size-3" />
-                                SYNCED
-                              </div>
-                            )}
-                            <label className={`inline-flex h-8 cursor-pointer select-none items-center gap-2 rounded-md border px-3 text-xs font-black transition ${isLogged && isSolved ? "border-green-500/50 bg-green-500/10 text-green-400" : "border-border bg-secondary/50"}`}>
-                              <input
-                                type="checkbox"
-                                className="accent-primary"
-                                checked={isSolved}
-                                onChange={(e) => setCarryOverSolvedDraft((s) => ({ ...s, [slotKey]: e.target.checked }))}
-                              />
-                              {isLogged && isSolved ? "Logged" : "Solved"}
-                            </label>
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                          <Button variant="outline" size="sm" className="h-11 shrink-0 gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10" asChild>
-                            <a href={link.startsWith('http') ? link : `https://${link}`} target="_blank" rel="noreferrer">
-                              <ExternalLink className="size-4" /> See the problem
-                            </a>
-                          </Button>
-                          <button
-                            type="button"
-                            title={bookmarkedLinks.has(link) ? "Remove bookmark" : "Bookmark problem"}
-                            onClick={() => toggleLinkBookmark(link)}
-                            className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-md border px-3 text-xs font-bold transition ${
-                              bookmarkedLinks.has(link)
-                                ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
-                                : "border-border bg-secondary/40 text-muted-foreground hover:border-accent/40 hover:text-accent"
-                            }`}
-                          >
-                            {bookmarkedLinks.has(link) ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
-                          </button>
+                          <label className={`inline-flex h-8 cursor-pointer select-none items-center gap-2 rounded-md border px-3 text-xs font-black transition ${isLogged && isSolved ? "border-green-500/50 bg-green-500/10 text-green-400" : "border-border bg-secondary/50"}`}>
+                            <input
+                              type="checkbox"
+                              className="accent-primary"
+                              checked={isSolved}
+                              onChange={(e) => setCarryOverSolvedDraft((s) => ({ ...s, [slotKey]: e.target.checked }))}
+                            />
+                            {isLogged && isSolved ? "Logged" : "Solved"}
+                          </label>
                         </div>
                       </div>
-
-                      {isSolved && !isLogged && (
-                        <div className="ml-1 flex flex-wrap items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-                          <span className="text-xs text-muted-foreground">Difficulty:</span>
-                          <div className="inline-flex rounded-md border border-border bg-secondary/40 p-0.5">
-                            {difficultyTabs.map((d) => (
-                              <button
-                                key={d}
-                                type="button"
-                                onClick={() => setSolvedMeta((m) => ({ ...m, [slotKey]: { ...meta, difficulty: d } }))}
-                                className={`rounded-sm px-2 py-1 text-xs font-bold transition ${meta.difficulty === d ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground hover:text-foreground"}`}
-                              >
-                                {d}
-                              </button>
-                            ))}
-                          </div>
-                          <span className="text-xs text-muted-foreground">Time:</span>
-                          <div className="inline-flex rounded-md border border-border bg-secondary/40 p-0.5">
-                            {timeTabs.map((t) => (
-                              <button
-                                key={t.value}
-                                type="button"
-                                onClick={() => setSolvedMeta((m) => ({ ...m, [slotKey]: { ...meta, timeTaken: t.value } }))}
-                                className={`rounded-sm px-2 py-1 text-xs font-bold transition ${meta.timeTaken === t.value ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                              >
-                                {t.label}
-                              </button>
-                            ))}
-                          </div>
-                          <span className="text-xs font-semibold text-primary">→ Will log as solved</span>
-                        </div>
-                      )}
-
-                      {isLogged && isSolved && (
-                        <p className="ml-1 text-xs font-semibold text-green-400">✓ Logged to your problems</p>
-                      )}
-
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <span className="rounded-full bg-orange-500/10 text-orange-500/80 px-2 py-1">From {co.day}</span>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Button variant="outline" size="sm" className="h-11 shrink-0 gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10" asChild>
+                          <a href={link.startsWith('http') ? link : `https://${link}`} target="_blank" rel="noreferrer">
+                            <ExternalLink className="size-4" /> See the problem
+                          </a>
+                        </Button>
+                        <button
+                          type="button"
+                          title={bookmarkedLinks.has(link) ? "Remove bookmark" : "Bookmark problem"}
+                          onClick={() => toggleLinkBookmark(link)}
+                          className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-md border px-3 text-xs font-bold transition ${
+                            bookmarkedLinks.has(link)
+                              ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
+                              : "border-border bg-secondary/40 text-muted-foreground hover:border-accent/40 hover:text-accent"
+                          }`}
+                        >
+                          {bookmarkedLinks.has(link) ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
+                        </button>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+
+                    {isSolved && !isLogged && (
+                      <div className="ml-1 flex flex-wrap items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                        <span className="text-xs text-muted-foreground">Difficulty:</span>
+                        <div className="inline-flex rounded-md border border-border bg-secondary/40 p-0.5">
+                          {difficultyTabs.map((d) => (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() => setSolvedMeta((m) => ({ ...m, [slotKey]: { ...meta, difficulty: d } }))}
+                              className={`rounded-sm px-2 py-1 text-xs font-bold transition ${meta.difficulty === d ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground hover:text-foreground"}`}
+                            >
+                              {d}
+                            </button>
+                          ))}
+                        </div>
+                        <span className="text-xs text-muted-foreground">Time:</span>
+                        <div className="inline-flex rounded-md border border-border bg-secondary/40 p-0.5">
+                          {timeTabs.map((t) => (
+                            <button
+                              key={t.value}
+                              type="button"
+                              onClick={() => setSolvedMeta((m) => ({ ...m, [slotKey]: { ...meta, timeTaken: t.value } }))}
+                              className={`rounded-sm px-2 py-1 text-xs font-bold transition ${meta.timeTaken === t.value ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                            >
+                              {t.label}
+                            </button>
+                          ))}
+                        </div>
+                        <span className="text-xs font-semibold text-primary">→ Will log as solved</span>
+                      </div>
+                    )}
+
+                    {isLogged && isSolved && (
+                      <p className="ml-1 text-xs font-semibold text-green-400">✓ Logged to your problems</p>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span className="rounded-full bg-orange-500/10 text-orange-500/80 px-2 py-1">From {co.day}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Today's Revision Panel — sits inside TodayTargetView
+───────────────────────────────────────────────────────────────────────── */
+
+type RevisionItem = {
+  id: string;
+  name: string;
+  link: string;
+  platform: string;
+  difficulty: string;
+  topic: string;
+  done: boolean;
+  addedAt: string;
+  source: "picked" | "new";
+};
+
+function difficultyBadgeClass(d: string) {
+  if (d === "Easy") return "text-emerald-400 bg-emerald-400/10 border-emerald-400/20";
+  if (d === "Hard") return "text-rose-400 bg-rose-400/10 border-rose-400/20";
+  return "text-amber-400 bg-amber-400/10 border-amber-400/20";
+}
+
+function deriveRevisionName(url: string) {
+  try {
+    const parts = new URL(url.startsWith("http") ? url : `https://${url}`).pathname.split("/").filter(Boolean);
+    const idx = parts.indexOf("problems");
+    const slug = idx !== -1 ? parts[idx + 1] : parts[parts.length - 1];
+    return (slug || "Problem").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  } catch { return "Problem"; }
+}
+
+function deriveRevisionPlatform(url: string) {
+  try {
+    const h = new URL(url.startsWith("http") ? url : `https://${url}`).hostname.toLowerCase();
+    if (h.includes("leetcode")) return "LeetCode";
+    if (h.includes("geeksforgeeks") || h.includes("gfg")) return "GeeksforGeeks";
+    if (h.includes("codeforces")) return "Codeforces";
+    if (h.includes("codechef")) return "CodeChef";
+    if (h.includes("hackerrank")) return "HackerRank";
+    if (h.includes("atcoder")) return "AtCoder";
+    return "Other";
+  } catch { return "Other"; }
+}
+
+function TodayRevisionPanel({
+  currentAccountId,
+  problems,
+}: {
+  currentAccountId: string;
+  problems: Problem[];
+}) {
+  const dayKey = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+
+  const storageKey = `today_revision_${dayKey}_${currentAccountId}`;
+
+  const [items, setItems] = useState<RevisionItem[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const d = new Date();
+      const k = `today_revision_${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}_${currentAccountId}`;
+      const raw = localStorage.getItem(k);
+      if (raw) return JSON.parse(raw) as RevisionItem[];
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(items));
+  }, [items, storageKey]);
+
+  // ── Link input state ───────────────────────────────────────────────────
+  const [linkInputOpen, setLinkInputOpen] = useState(false);
+  const [linkDraft, setLinkDraft] = useState("");
+  const [fetchingMeta, setFetchingMeta] = useState(false);
+  const [fetchedMeta, setFetchedMeta] = useState<{ name: string; platform: string; difficulty: string; topic: string } | null>(null);
+
+  // ── Picker state ───────────────────────────────────────────────────────
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState("");
+
+  const myProblems = useMemo(
+    () => problems.filter((p) => p.accountId === currentAccountId).sort((a, b) => new Date(b.solvedAt).getTime() - new Date(a.solvedAt).getTime()),
+    [problems, currentAccountId]
+  );
+
+  const filteredProblems = useMemo(() => {
+    const q = pickerSearch.trim().toLowerCase();
+    if (!q) return myProblems.slice(0, 50);
+    return myProblems.filter((p) => p.name.toLowerCase().includes(q) || p.platform.toLowerCase().includes(q) || p.topic.toLowerCase().includes(q)).slice(0, 50);
+  }, [myProblems, pickerSearch]);
+
+  const addedIds = useMemo(() => new Set(items.map((i) => i.id)), [items]);
+
+  // ── Fetch metadata for a link ──────────────────────────────────────────
+  const fetchMetaForLink = async (url: string) => {
+    const trimmed = url.trim();
+    if (!trimmed) { setFetchedMeta(null); return; }
+    setFetchingMeta(true);
+    try {
+      const res = await fetch(`/api/problem-metadata?url=${encodeURIComponent(trimmed)}`);
+      const meta = res.ok ? await res.json() : null;
+      setFetchedMeta({
+        name: meta?.name || deriveRevisionName(trimmed),
+        platform: meta?.platform || deriveRevisionPlatform(trimmed),
+        difficulty: meta?.difficulty || "Medium",
+        topic: meta?.topic || "DSA",
+      });
+    } catch {
+      setFetchedMeta({ name: deriveRevisionName(trimmed), platform: deriveRevisionPlatform(trimmed), difficulty: "Medium", topic: "DSA" });
+    } finally {
+      setFetchingMeta(false);
+    }
+  };
+
+  const commitLinkItem = () => {
+    const link = linkDraft.trim();
+    if (!link) return;
+    const meta = fetchedMeta;
+    setItems((prev) => [
+      ...prev,
+      {
+        id: `new_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        name: meta?.name || deriveRevisionName(link),
+        link,
+        platform: meta?.platform || deriveRevisionPlatform(link),
+        difficulty: meta?.difficulty || "Medium",
+        topic: meta?.topic || "DSA",
+        done: false,
+        addedAt: new Date().toISOString(),
+        source: "new",
+      },
+    ]);
+    toast.success(`Added "${meta?.name || deriveRevisionName(link)}" to revision`);
+    setLinkDraft("");
+    setFetchedMeta(null);
+    setLinkInputOpen(false);
+  };
+
+  const addFromPicker = (p: Problem) => {
+    if (addedIds.has(p.id)) { toast.info("Already in revision list"); return; }
+    setItems((prev) => [...prev, { id: p.id, name: p.name, link: p.link, platform: p.platform, difficulty: p.difficulty, topic: p.topic, done: false, addedAt: new Date().toISOString(), source: "picked" }]);
+    toast.success(`Added "${p.name}" to revision`);
+  };
+
+  const toggleDone = (id: string) => setItems((prev) => prev.map((it) => (it.id === id ? { ...it, done: !it.done } : it)));
+  const removeItem = (id: string) => { setItems((prev) => prev.filter((it) => it.id !== id)); toast.success("Removed from revision list"); };
+
+  const doneCount = items.filter((i) => i.done).length;
+  const revisionPct = items.length > 0 ? Math.round((doneCount / items.length) * 100) : 0;
+
+  return (
+    <div className="glass-panel rounded-2xl p-5 space-y-5">
+
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <Repeat2 className="size-5 text-accent" />
+            <h3 className="text-xl font-black">Revision Problems</h3>
+            {items.length > 0 && (
+              <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-accent">
+                {doneCount}/{items.length} done
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Revise problems today — pick from your solved list or paste a link.
+          </p>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <Button
+            id="revision-from-solved-btn"
+            variant="secondary"
+            size="sm"
+            className="h-9 gap-2 border border-accent/20 bg-accent/10 text-accent hover:bg-accent/20 font-bold"
+            onClick={() => { setPickerOpen((o) => !o); setLinkInputOpen(false); }}
+          >
+            <BookOpen className="size-4" /> From Solved
+          </Button>
+          <Button
+            id="revision-add-link-btn"
+            variant="secondary"
+            size="sm"
+            className="h-9 gap-2 border border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 font-bold"
+            onClick={() => { setLinkInputOpen((o) => !o); setPickerOpen(false); setLinkDraft(""); setFetchedMeta(null); }}
+          >
+            <Plus className="size-4" /> Add Problem
+          </Button>
         </div>
       </div>
 
-      <div className="glass-panel rounded-2xl p-5">
-        <h4 className="mb-4 text-xl font-bold">Today’s Score</h4>
-        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-          {users.map((u) => {
-            const count = links.filter((_, slot) => allSolved[String(slot)]?.has(u.id)).length;
-            const total = links.filter((l) => l.trim()).length;
-            const isOnline = Object.values(presence).flat().some(p => (p as any).id === u.id);
+      {/* ── Progress bar ───────────────────────────────────────────── */}
+      {items.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+            <span className="font-semibold uppercase tracking-widest text-[10px]">Revision Progress</span>
+            <span className="font-mono font-bold text-foreground">{revisionPct}%</span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-secondary/40">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${revisionPct === 100 ? "bg-green-500 shadow-glow" : "bg-gradient-to-r from-accent via-primary to-accent"}`}
+              style={{ width: `${revisionPct}%` }}
+            />
+          </div>
+          {revisionPct === 100 && <p className="mt-1.5 text-xs font-bold text-green-400">🎉 All revision problems done for today!</p>}
+        </div>
+      )}
+
+      {/* ── Link input — same aesthetic as Today's Target slots ─────── */}
+      {linkInputOpen && (
+        <div className="space-y-3 animate-in fade-in slide-in-from-top-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-primary">Add Revision Problem via Link</span>
+            <button type="button" onClick={() => { setLinkInputOpen(false); setLinkDraft(""); setFetchedMeta(null); }} className="text-muted-foreground hover:text-foreground">
+              <X className="size-4" />
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+            <div className="relative flex-1">
+              <input
+                autoFocus
+                value={linkDraft}
+                onChange={(e) => { setLinkDraft(e.target.value); setFetchedMeta(null); }}
+                onBlur={() => { if (linkDraft.trim()) fetchMetaForLink(linkDraft); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); linkDraft.trim() && !fetchingMeta ? (fetchedMeta ? commitLinkItem() : fetchMetaForLink(linkDraft)) : undefined; }
+                }}
+                placeholder="Paste problem link — e.g. https://leetcode.com/problems/two-sum/"
+                className="h-11 w-full rounded-lg border border-input bg-background/70 px-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              {fetchingMeta && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
+
+              {/* Fetched title badge — identical to Today's Target */}
+              {fetchedMeta && linkDraft.trim() && (
+                <div className="mt-1.5 flex items-center gap-2 px-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                    {fetchedMeta.platform}
+                  </span>
+                  <span className="text-xs font-bold truncate max-w-[220px]">{fetchedMeta.name}</span>
+                  <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${difficultyBadgeClass(fetchedMeta.difficulty)}`}>
+                    {fetchedMeta.difficulty}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex shrink-0 gap-2">
+              {linkDraft.trim() && (
+                <Button variant="outline" size="sm" className="h-11 gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10" asChild>
+                  <a href={linkDraft.startsWith("http") ? linkDraft : `https://${linkDraft}`} target="_blank" rel="noreferrer">
+                    <ExternalLink className="size-4" /> See problem
+                  </a>
+                </Button>
+              )}
+              <Button
+                variant="rival"
+                size="sm"
+                className="h-11"
+                disabled={!linkDraft.trim() || fetchingMeta}
+                onClick={() => { fetchedMeta ? commitLinkItem() : fetchMetaForLink(linkDraft); }}
+              >
+                {fetchedMeta ? <><Plus className="size-4" /> Add to Revision</> : fetchingMeta ? <><Loader2 className="size-4 animate-spin" /> Fetching…</> : <><Zap className="size-4" /> Fetch & Add</>}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── From Solved picker ─────────────────────────────────────── */}
+      {pickerOpen && (
+        <div className="rounded-xl border border-accent/20 bg-accent/5 p-4 animate-in fade-in slide-in-from-top-1 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-black uppercase tracking-widest text-accent">Pick from Your Solved Problems</p>
+            <button type="button" onClick={() => setPickerOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <input autoFocus value={pickerSearch} onChange={(e) => setPickerSearch(e.target.value)} placeholder="Search by name, platform, or topic..." className="h-10 w-full rounded-lg border border-input bg-background/70 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-accent/30" />
+          </div>
+          {myProblems.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">No solved problems yet. Add some in <span className="font-semibold text-foreground">My Problems</span>.</p>
+          ) : filteredProblems.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">No matches found.</p>
+          ) : (
+            <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1">
+              {filteredProblems.map((p) => {
+                const alreadyAdded = addedIds.has(p.id);
+                return (
+                  <div
+                    key={p.id}
+                    className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 transition ${alreadyAdded ? "border-border bg-card/30 opacity-50 cursor-not-allowed" : "border-border bg-card/60 hover:border-accent/40 hover:bg-accent/5 cursor-pointer"}`}
+                    onClick={() => !alreadyAdded && addFromPicker(p)}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="truncate text-sm font-bold">{p.name}</span>
+                        <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${difficultyBadgeClass(p.difficulty)}`}>{p.difficulty}</span>
+                        <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">{p.platform}</span>
+                        <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">{p.topic}</span>
+                      </div>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        Solved {new Date(p.solvedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </p>
+                    </div>
+                    <div className="shrink-0">
+                      {alreadyAdded ? (
+                        <span className="text-[10px] font-bold text-muted-foreground">Added</span>
+                      ) : (
+                        <span className="rounded-md bg-accent/20 px-2 py-1 text-[10px] font-black text-accent hover:bg-accent/30 transition">
+                          + Add
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Revision problem list — Today's Target slot style ───────── */}
+      {items.length === 0 && !linkInputOpen && !pickerOpen ? (
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+          <div className="mb-3 flex size-14 items-center justify-center rounded-2xl bg-accent/10 text-accent">
+            <Repeat2 className="size-7" />
+          </div>
+          <p className="text-sm font-semibold text-muted-foreground">No revision problems for today</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Click <span className="font-semibold text-foreground">From Solved</span> or{" "}
+            <span className="font-semibold text-foreground">Add Problem</span> above to get started.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {items.map((item) => {
+            const isSolved = item.done;
             return (
-              <div key={u.id} className={`relative flex items-center justify-between rounded-xl border p-4 transition ${u.id === currentAccountId ? "border-primary bg-primary/10" : "border-border bg-card/70"}`}>
-                {isOnline && (
-                  <div className="absolute -right-1 -top-1 flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[8px] font-black text-accent-foreground shadow-glow">
-                    <Flame className="size-2 animate-pulse" /> COOKING
+              <div key={item.id} className="grid gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="relative flex-1">
+                    <div className={`flex h-11 w-full items-center rounded-lg border px-3 pr-32 text-sm transition ${isSolved ? "border-green-500/40 bg-green-500/5" : "border-input bg-background/70"}`}>
+                      {item.link ? (
+                        <a href={item.link.startsWith("http") ? item.link : `https://${item.link}`} target="_blank" rel="noreferrer" className={`truncate font-medium hover:underline ${isSolved ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                          {item.link}
+                        </a>
+                      ) : (
+                        <span className={`truncate ${isSolved ? "line-through text-muted-foreground" : "text-muted-foreground"}`}>{item.name}</span>
+                      )}
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-2 px-1">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${isSolved ? "text-green-400 bg-green-400/10 border-green-400/20" : "text-primary bg-primary/10 border-primary/20"}`}>
+                        {item.platform}
+                      </span>
+                      <span className={`text-xs font-bold truncate max-w-[200px] ${isSolved ? "line-through text-muted-foreground" : ""}`}>{item.name}</span>
+                      <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${difficultyBadgeClass(item.difficulty)}`}>{item.difficulty}</span>
+                      <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">{item.topic}</span>
+                    </div>
+                    <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                      {isSolved && (
+                        <div className="hidden items-center gap-1.5 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-bold text-green-400 sm:flex">
+                          <CheckCircle2 className="size-3" /> DONE
+                        </div>
+                      )}
+                      <label className={`inline-flex h-8 cursor-pointer select-none items-center gap-2 rounded-md border px-3 text-xs font-black transition ${isSolved ? "border-green-500/50 bg-green-500/10 text-green-400" : "border-border bg-secondary/50"}`}>
+                        <input type="checkbox" className="accent-primary" checked={isSolved} onChange={() => toggleDone(item.id)} />
+                        {isSolved ? "Revised" : "Revised?"}
+                      </label>
+                    </div>
                   </div>
-                )}
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{u.emoji}</span>
-                  <div>
-                    <p className="font-bold leading-tight">{u.name}</p>
-                    <p className="text-xs text-muted-foreground">@{u.username}</p>
+                  <div className="flex items-center gap-2">
+                    {item.link && (
+                      <Button variant="outline" size="sm" className="h-11 shrink-0 gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10" asChild>
+                        <a href={item.link.startsWith("http") ? item.link : `https://${item.link}`} target="_blank" rel="noreferrer">
+                          <ExternalLink className="size-4" /> See the problem
+                        </a>
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => removeItem(item.id)}>
+                      <Trash2 className="size-4" />
+                    </Button>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-3xl font-black text-primary">{count}</p>
-                  <p className="text-xs text-muted-foreground">of {total}</p>
-                </div>
+                {isSolved && <p className="ml-1 text-xs font-semibold text-green-400">✓ Marked as revised for today</p>}
               </div>
             );
           })}
         </div>
-      </div>
+      )}
 
-      <div className="glass-panel rounded-2xl p-5">
-        <h4 className="mb-4 text-xl font-bold">Who solved what</h4>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="text-muted-foreground">
-              <tr>
-                <th className="py-3">Target</th>
-                {users.map((u) => (
-                  <th key={u.id} className="py-3">
-                    {u.emoji} {u.name}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {links.map((link, idx) => {
-                const key = link.trim();
-                return (
-                  <tr key={idx} className="border-t border-border">
-                    <td className="py-3 font-semibold">
-                      <div className="flex items-center gap-3">
-                        <span>Target {idx + 1}</span>
-                        {key && (
-                          <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[10px] text-primary hover:text-primary hover:bg-primary/10" asChild>
-                            <a href={key.startsWith('http') ? key : `https://${key}`} target="_blank" rel="noreferrer">
-                              <ExternalLink className="size-3" /> See the problem
-                            </a>
-                          </Button>
-                        )}
-                        {!key && <span className="text-xs font-normal text-muted-foreground">(Empty)</span>}
-                      </div>
-                    </td>
-                    {users.map((u) => {
-                      const solvedFlag = !!key && !!allSolved[String(idx)]?.has(u.id);
-                      return (
-                        <td key={u.id} className="py-3">
-                          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${solvedFlag ? "bg-green-500/20 text-green-300" : "bg-secondary/40 text-muted-foreground"}`}>
-                            {solvedFlag ? "Solved" : "--"}
-                          </span>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* ── Add more buttons ──────────────────────────────────────── */}
+      {items.length > 0 && (
+        <div className="flex gap-2 border-t border-border pt-3">
+          <Button variant="outline" className="flex-1 border-dashed py-7 text-muted-foreground hover:text-accent hover:border-accent/50 hover:bg-accent/5 transition-all" onClick={() => { setPickerOpen(true); setLinkInputOpen(false); }}>
+            <BookOpen className="mr-2 size-4" /> Add from Solved
+          </Button>
+          <Button variant="outline" className="flex-1 border-dashed py-7 text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all" onClick={() => { setLinkInputOpen(true); setPickerOpen(false); setLinkDraft(""); setFetchedMeta(null); }}>
+            <Plus className="mr-2 size-4" /> Add New Problem
+          </Button>
         </div>
-        <p className="mt-4 text-xs text-muted-foreground">
-          Note: "Solved" is <span className="font-semibold">manual</span>. Check boxes above then click <span className="font-semibold">Save My Progress</span> to log.
-        </p>
-      </div>
+      )}
     </div>
   );
 }
