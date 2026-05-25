@@ -477,21 +477,20 @@ function CompetitionApp({ currentAccountId, data, onRefresh, onSync, onLogout }:
     toast.success("Logged out"); 
   };
 
-  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">The Arena</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} friend={friend} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}{view === "today-target" && <TodayTargetView currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}{view === "focus" && <FocusTodo currentAccountId={currentAccountId} />}{view === "focus-analytics" && <FocusAnalytics currentAccountId={currentAccountId} />}{view === "revision" && <RevisionView currentAccountId={currentAccountId} problems={squadData.problems} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={squadData.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={squadUsers} problems={squadData.problems} />}{view === "platform-stats" && <PlatformStats currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} />}{view === "hall-of-fame" && <HallOfFame users={squadUsers} problems={squadData.problems} />}{view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={allUsers} onRefresh={onRefresh} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={squadUsers} problems={squadData.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
+  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">The Arena</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} squadUsers={squadUsers} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}{view === "today-target" && <TodayTargetView currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}{view === "focus" && <FocusTodo currentAccountId={currentAccountId} />}{view === "focus-analytics" && <FocusAnalytics currentAccountId={currentAccountId} />}{view === "revision" && <RevisionView currentAccountId={currentAccountId} problems={squadData.problems} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={squadData.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={squadUsers} problems={squadData.problems} />}{view === "platform-stats" && <PlatformStats currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} />}{view === "hall-of-fame" && <HallOfFame users={squadUsers} problems={squadData.problems} />}{view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={allUsers} onRefresh={onRefresh} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={squadUsers} problems={squadData.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
 }
 
-function Header({ user, friend }: { user: MutualUser; friend: MutualUser }) {
+function Header({ user, squadUsers }: { user: MutualUser; squadUsers: MutualUser[] }) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  const hasDuo = friend && friend.id !== user.id;
-  return <header className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card/70 p-5 shadow-card sm:flex-row sm:items-center"><div><p className="text-sm font-semibold text-primary">Duo: {hasDuo ? `${friend.name} ${friend.emoji}` : "None"}</p><h2 className="text-3xl font-black">{greeting}, {user.name}! {user.emoji}</h2></div><div className="rounded-xl bg-secondary px-4 py-3 text-sm text-muted-foreground"><Flame className="mr-2 inline size-4 text-accent" /> Cooking with the Squad.</div></header>;
+  const friends = squadUsers.filter(u => u.id !== user.id);
+  const friendLabel = friends.length === 0 ? "None" : friends.map(f => `${f.emoji} ${f.name}`).join(" · ");
+  return <header className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card/70 p-5 shadow-card sm:flex-row sm:items-center"><div><p className="text-sm font-semibold text-primary">Squad: {friendLabel}</p><h2 className="text-3xl font-black">{greeting}, {user.name}! {user.emoji}</h2></div><div className="rounded-xl bg-secondary px-4 py-3 text-sm text-muted-foreground"><Flame className="mr-2 inline size-4 text-accent" /> Cooking with the Squad.</div></header>;
 }
 
 function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { currentAccountId: string; data: AppData; users: MutualUser[]; onRefresh: () => Promise<void>; onSync: () => Promise<void> }) {
   const mine = userStats(data.problems, currentAccountId);
-  const friendId = getFriendId(currentAccountId, users);
   const user = users.find((item) => item.id === currentAccountId)!;
-  const friend = users.find((item) => item.id === friendId) ?? user;
   const [presence, setPresence] = useState<Record<string, any>>({});
 
   useEffect(() => {
@@ -506,13 +505,13 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           console.log("Joined presence channel as", currentAccountId);
-          const status = await channel.track({ 
+          const trackStatus = await channel.track({ 
             id: currentAccountId, 
             account_id: currentAccountId,
             online_at: new Date().toISOString(),
             name: user.name
           });
-          if (status !== 'ok') console.error("Presence track failed:", status);
+          if (trackStatus !== 'ok') console.error("Presence track failed:", trackStatus);
         }
       });
 
@@ -522,24 +521,20 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
   }, [currentAccountId, user.name]);
 
   const streakInfo = getStreakStatus(mine.solvedToday);
-  const rival = userStats(data.problems, friendId);
   const myPlatformTotal = data.platformConnections
     .filter((c) => c.account_id === currentAccountId)
     .reduce((acc, c) => acc + ((c.stats as any)?.totalSolved ?? 0), 0);
-  const friendPlatformTotal = data.platformConnections
-    .filter((c) => c.account_id === friend.id)
-    .reduce((acc, c) => acc + ((c.stats as any)?.totalSolved ?? 0), 0);
   const isUserOnline = Object.values(presence).flat().some((p) => (p as any).id === user.id);
-  const isFriendOnline = Object.values(presence).flat().some((p) => (p as any).id === friend.id);
-  const hasFriend = friend.id !== user.id;
 
-  const sendNudge = () => {
+  const friends = users.filter(u => u.id !== currentAccountId);
+  const nudgeFriend = (fId: string) => {
+    const f = users.find(u => u.id === fId);
     supabase.channel("rivals-live").send({
       type: "broadcast",
       event: "taunt",
-      payload: { from: user.name, to: friend.id },
+      payload: { from: user.name, to: fId },
     });
-    toast.success("Nudge sent! 🔔", { description: "Hopefully they're paying attention." });
+    toast.success(`Nudge sent to ${f?.name}! 🔔`, { description: "Hopefully they're paying attention." });
   };
 
   return (
@@ -555,26 +550,60 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
         <StatCard label="Weekly Progress" value={mine.week} Icon={Activity} />
       </div>
 
+      {/* Squad Comparison — scrollable row of cards for all members */}
       <div className="glass-panel rounded-2xl p-5">
-        <h3 className="mb-4 text-xl font-bold">Friend Comparison</h3>
-        {hasFriend ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <MutualCard user={user} stats={mine} platformTotal={myPlatformTotal} isOnline={isUserOnline} highlight />
-            <MutualCard user={friend} stats={rival} platformTotal={friendPlatformTotal} isOnline={isFriendOnline} onTaunt={sendNudge} />
-          </div>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-xl font-bold">Squad Comparison</h3>
+          {users.length > 2 && (
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary">
+              {users.length} members · scroll →
+            </span>
+          )}
+        </div>
+        {friends.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No squad members yet. Send requests from the Squad Requests tab!</p>
         ) : (
-          <p className="text-sm text-muted-foreground">Pick a duo from the Profile tab to compare progress and send nudges.</p>
+          <div className="-mx-1 overflow-x-auto pb-2">
+            <div className="flex gap-4 px-1" style={{ minWidth: 'max-content' }}>
+              {/* Always show yourself first */}
+              <div className="w-64 shrink-0">
+                <MutualCard user={user} stats={mine} platformTotal={myPlatformTotal} isOnline={isUserOnline} highlight />
+              </div>
+              {/* Then all friends */}
+              {friends.map(f => {
+                const fStats = userStats(data.problems, f.id);
+                const fPlatformTotal = data.platformConnections
+                  .filter(c => c.account_id === f.id)
+                  .reduce((acc, c) => acc + ((c.stats as any)?.totalSolved ?? 0), 0);
+                const fIsOnline = Object.values(presence).flat().some(p => (p as any).id === f.id);
+                return (
+                  <div key={f.id} className="w-64 shrink-0">
+                    <MutualCard
+                      user={f}
+                      stats={fStats}
+                      platformTotal={fPlatformTotal}
+                      isOnline={fIsOnline}
+                      onTaunt={() => nudgeFriend(f.id)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
 
+      {/* Heatmaps for all squad members */}
       <div className="grid gap-6">
         <Heatmap currentAccountId={currentAccountId} problems={data.problems} title={`${user.emoji} ${user.name}'s Contributions`} />
-        {friend.id !== user.id ? (
-          <Heatmap currentAccountId={friend.id} problems={data.problems} title={`${friend.emoji} ${friend.name}'s Contributions (Friend)`} />
-        ) : (
+        {friends.length === 0 ? (
           <div className="glass-panel rounded-2xl p-5 text-sm text-muted-foreground">
-            Pick a duo from the Profile tab to see your friend's contribution heatmap here.
+            Send squad requests to see your friends' contribution heatmaps here.
           </div>
+        ) : (
+          friends.map(f => (
+            <Heatmap key={f.id} currentAccountId={f.id} problems={data.problems} title={`${f.emoji} ${f.name}'s Contributions`} />
+          ))
         )}
       </div>
       <SquadActivity data={data} users={users} />
@@ -2857,12 +2886,29 @@ function HallOfFame({ users, problems }: { users: MutualUser[]; problems: Proble
   );
 }
 
-function Analytics({ currentAccountId, users, problems }: { currentAccountId: string; users: MutualUser[]; problems: Problem[] }) {
-  const friendId = getFriendId(currentAccountId, users);
-  const mine = useMemo(() => problems.filter((problem) => problem.accountId === currentAccountId), [problems, currentAccountId]);
-  const friend = useMemo(() => problems.filter((problem) => problem.accountId === friendId), [problems, friendId]);
+// Accent colours for chart bars — one per user. Index 0 = current user (primary).
+const CHART_COLORS = [
+  "hsl(var(--primary))",
+  "hsl(var(--accent))",
+  "hsl(262 83% 68%)",  // violet
+  "hsl(340 82% 62%)",  // rose
+  "hsl(173 58% 52%)",  // teal
+  "hsl(38 96% 56%)",   // amber
+];
 
-  const { weeklyBars, monthlyBars, mineAvg, friendAvg, pie } = useMemo(() => {
+function Analytics({ currentAccountId, users, problems }: { currentAccountId: string; users: MutualUser[]; problems: Problem[] }) {
+  const friends = users.filter(u => u.id !== currentAccountId);
+  // For charts, allow user to pick which friend to compare against (default first friend)
+  const [selectedFriendId, setSelectedFriendId] = useState<string>(() => friends[0]?.id ?? "");
+
+  const mine = useMemo(() => problems.filter((problem) => problem.accountId === currentAccountId), [problems, currentAccountId]);
+  const friendProblems = useMemo(
+    () => problems.filter((problem) => problem.accountId === selectedFriendId),
+    [problems, selectedFriendId]
+  );
+  const selectedFriend = users.find(u => u.id === selectedFriendId);
+
+  const { weeklyBars, monthlyBars, mineAvg, friendAvg, pieData } = useMemo(() => {
     const startOfLocalDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
     const dayKey = (d: Date) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -2873,7 +2919,7 @@ function Analytics({ currentAccountId, users, problems }: { currentAccountId: st
       mineCountsByDay.set(key, (mineCountsByDay.get(key) ?? 0) + 1);
     }
     const friendCountsByDay = new Map<string, number>();
-    for (const p of friend) {
+    for (const p of friendProblems) {
       const key = dayKey(startOfLocalDay(new Date(p.solvedAt)));
       friendCountsByDay.set(key, (friendCountsByDay.get(key) ?? 0) + 1);
     }
@@ -2885,9 +2931,7 @@ function Analytics({ currentAccountId, users, problems }: { currentAccountId: st
     const weekly = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(today);
       d.setDate(today.getDate() - (6 - i));
-      const mineSolved = mineCountsByDay.get(dayKey(d)) ?? 0;
-      const friendSolved = friendCountsByDay.get(dayKey(d)) ?? 0;
-      return { label: weekdayFmt.format(d), mine: mineSolved, friend: friendSolved };
+      return { label: weekdayFmt.format(d), mine: mineCountsByDay.get(dayKey(d)) ?? 0, friend: friendCountsByDay.get(dayKey(d)) ?? 0 };
     });
 
     // Monthly: last 6 months
@@ -2905,18 +2949,14 @@ function Analytics({ currentAccountId, users, problems }: { currentAccountId: st
       const key = `${d.getFullYear()}-${d.getMonth()}`;
       if (monthMine.has(key)) monthMine.set(key, (monthMine.get(key) ?? 0) + 1);
     }
-    for (const p of friend) {
+    for (const p of friendProblems) {
       const d = new Date(p.solvedAt);
       const key = `${d.getFullYear()}-${d.getMonth()}`;
       if (monthFriend.has(key)) monthFriend.set(key, (monthFriend.get(key) ?? 0) + 1);
     }
     const monthly = Array.from(monthMine.keys()).map((key) => {
       const [y, m] = key.split("-").map(Number);
-      return {
-        label: monthFmt.format(new Date(y!, m!, 1)),
-        mine: monthMine.get(key) ?? 0,
-        friend: monthFriend.get(key) ?? 0,
-      };
+      return { label: monthFmt.format(new Date(y!, m!, 1)), mine: monthMine.get(key) ?? 0, friend: monthFriend.get(key) ?? 0 };
     });
 
     // Daily average: last 30 days
@@ -2937,24 +2977,53 @@ function Analytics({ currentAccountId, users, problems }: { currentAccountId: st
       monthlyBars: monthly,
       mineAvg: avg,
       friendAvg: avgFriend,
-      pie: [
-        { name: "You", value: Number(avg.toFixed(3)) },
-        { name: "Rival", value: Number(avgFriend.toFixed(3)) },
+      pieData: [
+        { name: "You", value: Number(avg.toFixed(3)), fill: CHART_COLORS[0]! },
+        { name: selectedFriend?.name ?? "Rival", value: Number(avgFriend.toFixed(3)), fill: CHART_COLORS[1]! },
       ],
     };
-  }, [mine, friend]);
+  }, [mine, friendProblems, selectedFriend]);
 
   return (
     <section className="animate-enter space-y-6">
+      {/* Friend picker when multiple friends */}
+      {friends.length > 1 && (
+        <div className="glass-panel rounded-2xl p-5">
+          <h3 className="mb-3 text-sm font-black uppercase tracking-widest text-muted-foreground">Compare against</h3>
+          <div className="flex flex-wrap gap-2">
+            {friends.map((f, idx) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setSelectedFriendId(f.id)}
+                className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
+                  selectedFriendId === f.id
+                    ? "border-primary bg-primary/10 text-primary shadow-glow-sm"
+                    : "border-border bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                }`}
+              >
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-full"
+                  style={{ background: CHART_COLORS[(idx + 1) % CHART_COLORS.length] }}
+                />
+                {f.emoji} {f.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="glass-panel rounded-2xl p-5 lg:col-span-2">
-          <h3 className="mb-3 text-2xl font-black">Monthly Progress</h3>
-          <p className="mb-4 text-sm text-muted-foreground">Problems solved per month (last 6 months).</p>
+          <h3 className="mb-1 text-2xl font-black">Monthly Progress</h3>
+          <p className="mb-4 text-sm text-muted-foreground">
+            You vs {selectedFriend ? `${selectedFriend.emoji} ${selectedFriend.name}` : "—"} · last 6 months.
+          </p>
           <ChartContainer
             className="h-[260px] w-full"
             config={{
-              mine: { label: "You", color: "var(--color-primary)" },
-              friend: { label: "Rival", color: "var(--color-accent)" },
+              mine: { label: "You", color: CHART_COLORS[0]! },
+              friend: { label: selectedFriend?.name ?? "Rival", color: CHART_COLORS[1]! },
             }}
           >
             <BarChart data={monthlyBars} margin={{ left: 8, right: 8, top: 10, bottom: 0 }}>
@@ -2962,8 +3031,8 @@ function Analytics({ currentAccountId, users, problems }: { currentAccountId: st
               <XAxis dataKey="label" tickLine={false} axisLine={false} />
               <YAxis tickLine={false} axisLine={false} width={28} allowDecimals={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="mine" fill="var(--color-mine)" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="friend" fill="var(--color-friend)" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="mine" fill={CHART_COLORS[0]!} radius={[8, 8, 0, 0]} />
+              <Bar dataKey="friend" fill={CHART_COLORS[1]!} radius={[8, 8, 0, 0]} />
             </BarChart>
           </ChartContainer>
         </div>
@@ -2977,25 +3046,23 @@ function Analytics({ currentAccountId, users, problems }: { currentAccountId: st
           <ChartContainer
             className="h-[260px] w-full"
             config={{
-              you: { label: "You", color: "var(--color-primary)" },
-              rival: { label: "Rival", color: "var(--color-accent)" },
+              You: { label: "You", color: CHART_COLORS[0]! },
+              Rival: { label: selectedFriend?.name ?? "Rival", color: CHART_COLORS[1]! },
             }}
           >
             <PieChart>
               <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
               <Pie
-                data={[
-                  { name: "You", value: pie[0]!.value, fill: "var(--color-you)" },
-                  { name: "Rival", value: pie[1]!.value, fill: "var(--color-rival)" },
-                ]}
+                data={pieData}
                 dataKey="value"
                 nameKey="name"
                 innerRadius={58}
                 outerRadius={92}
                 stroke="transparent"
               >
-                <Cell fill="var(--color-you)" />
-                <Cell fill="var(--color-rival)" />
+                {pieData.map((entry, i) => (
+                  <Cell key={i} fill={entry.fill} />
+                ))}
               </Pie>
             </PieChart>
           </ChartContainer>
@@ -3003,13 +3070,15 @@ function Analytics({ currentAccountId, users, problems }: { currentAccountId: st
       </div>
 
       <div className="glass-panel rounded-2xl p-5">
-        <h3 className="mb-3 text-2xl font-black">Weekly Progress</h3>
-        <p className="mb-4 text-sm text-muted-foreground">Problems solved per day (last 7 days).</p>
+        <h3 className="mb-1 text-2xl font-black">Weekly Progress</h3>
+        <p className="mb-4 text-sm text-muted-foreground">
+          You vs {selectedFriend ? `${selectedFriend.emoji} ${selectedFriend.name}` : "—"} · last 7 days.
+        </p>
         <ChartContainer
           className="h-[240px] w-full"
           config={{
-            mine: { label: "You", color: "var(--color-primary)" },
-            friend: { label: "Rival", color: "var(--color-accent)" },
+            mine: { label: "You", color: CHART_COLORS[0]! },
+            friend: { label: selectedFriend?.name ?? "Rival", color: CHART_COLORS[1]! },
           }}
         >
           <BarChart data={weeklyBars} margin={{ left: 8, right: 8, top: 10, bottom: 0 }}>
@@ -3017,8 +3086,8 @@ function Analytics({ currentAccountId, users, problems }: { currentAccountId: st
             <XAxis dataKey="label" tickLine={false} axisLine={false} />
             <YAxis tickLine={false} axisLine={false} width={28} allowDecimals={false} />
             <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey="mine" fill="var(--color-mine)" radius={[8, 8, 0, 0]} />
-            <Bar dataKey="friend" fill="var(--color-friend)" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="mine" fill={CHART_COLORS[0]!} radius={[8, 8, 0, 0]} />
+            <Bar dataKey="friend" fill={CHART_COLORS[1]!} radius={[8, 8, 0, 0]} />
           </BarChart>
         </ChartContainer>
       </div>
