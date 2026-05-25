@@ -1,19 +1,22 @@
 import { supabase } from "../src/integrations/supabase/client";
 
 async function run() {
-  console.log("Checking columns of friendships table...");
+  console.log("Querying database tables...");
   try {
-    const { data, error } = await supabase.rpc("get_table_columns" as any, { table_name: "friendships" } as any);
-    if (error) {
-      // If RPC is not defined, we can query it via a simple select or other means, or let's try reading table info.
-      console.log("RPC get_table_columns failed, attempting custom query...");
-      const { data: cols, error: cErr } = await supabase.from("friendships" as any).select("*").limit(0);
-      console.log("Friendships columns query success:", !cErr, "Error:", cErr);
-    } else {
-      console.log("Columns:", data);
-    }
+    const { data: friendships, error: fError } = await supabase.from("friendships" as any).select("*");
+    console.log("Friendships table data:", friendships);
+    if (fError) console.error("Friendships error:", fError);
+
+    const { data: profiles, error: pError } = await supabase.from("profiles" as any).select("*");
+    console.log("Profiles table data:", profiles);
+    if (pError) console.error("Profiles error:", pError);
+
+    const { data: accounts, error: aError } = await supabase.from("accounts" as any).select("*");
+    console.log("Accounts table data:", accounts);
+    if (aError) console.error("Accounts error:", aError);
+
   } catch (err) {
-    console.error("Error:", err);
+    console.error("Error in run:", err);
   }
 }
 

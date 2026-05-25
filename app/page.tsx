@@ -100,7 +100,7 @@ const navItems = [
 export default function Page() {
   const [currentAccountId, setCurrentAccountId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<AppData>({ profiles: [], problems: [], platformConnections: [] });
+  const [data, setData] = useState<AppData>({ profiles: [], friendships: [], problems: [], platformConnections: [] });
 
   useEffect(() => {
     const id = localStorage.getItem("rivals_account_id");
@@ -193,6 +193,7 @@ export default function Page() {
     const channel = supabase
       .channel("rivals-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "friendships" }, () => refresh())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "problems" }, (payload) => {
         const newProblem = payload.new as any;
         const users = data.profiles.map(p => mapUser(p, data.problems));
@@ -428,10 +429,47 @@ function ProfileSetup({ accountId, onCreated }: { accountId: string; onCreated: 
 
 function CompetitionApp({ currentAccountId, data, onRefresh, onSync, onLogout }: { currentAccountId: string; data: AppData; onRefresh: () => Promise<void>; onSync: () => Promise<void>; onLogout: () => void }) {
   const [view, setView] = useState<ViewId>("dashboard");
-  const users = data.profiles.map(p => mapUser(p, data.problems));
-  const user = users.find((item) => item.id === currentAccountId)!;
-  const friendId = getFriendId(currentAccountId, users);
-  const friend = users.find((item) => item.id === friendId) ?? user;
+
+  // Get all users in the application (for SquadRequests search lookup)
+  const allUsers = useMemo(() => {
+    return data.profiles.map(p => mapUser(p, data.problems));
+  }, [data.profiles, data.problems]);
+
+  const user = useMemo(() => {
+    return allUsers.find((item) => item.id === currentAccountId)!;
+  }, [allUsers, currentAccountId]);
+
+  // Restrict squad to active friendships (status !== 'declined')
+  const squadUsers = useMemo(() => {
+    const friendships = data.friendships || [];
+    return allUsers.filter((u) => {
+      if (u.id === currentAccountId) return true;
+      return friendships.some((f) => {
+        return (
+          ((f.sender_id === currentAccountId && f.receiver_id === u.id) ||
+           (f.sender_id === u.id && f.receiver_id === currentAccountId)) &&
+          f.status !== "declined"
+        );
+      });
+    });
+  }, [allUsers, currentAccountId, data.friendships]);
+
+  const friendId = useMemo(() => {
+    return getFriendId(currentAccountId, squadUsers);
+  }, [currentAccountId, squadUsers]);
+
+  const friend = useMemo(() => {
+    return squadUsers.find((item) => item.id === friendId) ?? user;
+  }, [squadUsers, friendId, user]);
+
+  // Filter problems to only show those of the squad (self + linked friends)
+  const squadData = useMemo(() => {
+    const allowedUserIds = new Set(squadUsers.map((u) => u.id));
+    return {
+      ...data,
+      problems: data.problems.filter((p) => allowedUserIds.has(p.accountId)),
+    };
+  }, [data, squadUsers]);
   
   const logout = () => { 
     localStorage.removeItem("rivals_account_id");
@@ -439,13 +477,14 @@ function CompetitionApp({ currentAccountId, data, onRefresh, onSync, onLogout }:
     toast.success("Logged out"); 
   };
 
-  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">The Arena</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} friend={friend} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} onSync={onSync} />}{view === "today-target" && <TodayTargetView currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} onSync={onSync} />}{view === "focus" && <FocusTodo currentAccountId={currentAccountId} />}{view === "focus-analytics" && <FocusAnalytics currentAccountId={currentAccountId} />}{view === "revision" && <RevisionView currentAccountId={currentAccountId} problems={data.problems} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={data.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={users} problems={data.problems} />}{view === "platform-stats" && <PlatformStats currentAccountId={currentAccountId} data={data} users={users} onRefresh={onRefresh} />}{view === "hall-of-fame" && <HallOfFame users={users} problems={data.problems} />}{view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={users} onRefresh={onRefresh} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={users} problems={data.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
+  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">The Arena</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} friend={friend} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}{view === "today-target" && <TodayTargetView currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}{view === "focus" && <FocusTodo currentAccountId={currentAccountId} />}{view === "focus-analytics" && <FocusAnalytics currentAccountId={currentAccountId} />}{view === "revision" && <RevisionView currentAccountId={currentAccountId} problems={squadData.problems} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={squadData.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={squadUsers} problems={squadData.problems} />}{view === "platform-stats" && <PlatformStats currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} />}{view === "hall-of-fame" && <HallOfFame users={squadUsers} problems={squadData.problems} />}{view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={allUsers} onRefresh={onRefresh} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={squadUsers} problems={squadData.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
 }
 
 function Header({ user, friend }: { user: MutualUser; friend: MutualUser }) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  return <header className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card/70 p-5 shadow-card sm:flex-row sm:items-center"><div><p className="text-sm font-semibold text-primary">Duo: {friend.name} {friend.emoji}</p><h2 className="text-3xl font-black">{greeting}, {user.name}! {user.emoji}</h2></div><div className="rounded-xl bg-secondary px-4 py-3 text-sm text-muted-foreground"><Flame className="mr-2 inline size-4 text-accent" /> Cooking with the Squad.</div></header>;
+  const hasDuo = friend && friend.id !== user.id;
+  return <header className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card/70 p-5 shadow-card sm:flex-row sm:items-center"><div><p className="text-sm font-semibold text-primary">Duo: {hasDuo ? `${friend.name} ${friend.emoji}` : "None"}</p><h2 className="text-3xl font-black">{greeting}, {user.name}! {user.emoji}</h2></div><div className="rounded-xl bg-secondary px-4 py-3 text-sm text-muted-foreground"><Flame className="mr-2 inline size-4 text-accent" /> Cooking with the Squad.</div></header>;
 }
 
 function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { currentAccountId: string; data: AppData; users: MutualUser[]; onRefresh: () => Promise<void>; onSync: () => Promise<void> }) {

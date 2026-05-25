@@ -80,8 +80,19 @@ export type GfgStats = {
   solvedSlugs?: string[];
 };
 
+export type Friendship = {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  status: "pending" | "accepted" | "declined";
+  created_at: string;
+  updated_at: string;
+};
+
 export type AppData = {
   profiles: Profile[];
   problems: Problem[];
   platformConnections: PlatformConnection[];
+  friendships: Friendship[];
 };
+
