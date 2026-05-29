@@ -63,8 +63,8 @@ import {
   LeetCodeStats,
   PlatformConnection,
   Problem,
-  Profile as ProfileType, 
-  MutualUser 
+  Profile as ProfileType,
+  MutualUser
 } from "@/types/rivals";
 import {
   difficulties,
@@ -198,15 +198,15 @@ export default function Page() {
         const newProblem = payload.new as any;
         const users = data.profiles.map(p => mapUser(p, data.problems));
         const friendId = getFriendId(currentAccountId, users);
-        
+
         if (newProblem.account_id === friendId) {
           const friend = users.find(u => u.id === friendId);
           const mine = userStats(data.problems, currentAccountId);
           const rival = userStats([...data.problems, newProblem], friendId);
-          
+
           let tone = "🔥 Your mutual is cooking!";
           let desc = `${friend?.name} just solved ${newProblem.name}.`;
-          
+
           if (rival.total > mine.total + 4) {
             tone = "🚨 THEY'RE PULLING AHEAD!";
             desc = `${friend?.name} is in their prime. Time to catch up?`;
@@ -231,7 +231,7 @@ export default function Page() {
         new Audio(randomTrack).play().catch((err) => console.error("Audio playback error:", err));
 
         if (payload.payload.to === currentAccountId) {
-          toast(`🔔 Wake up and code!`, { 
+          toast(`🔔 Wake up and code!`, {
             description: `${payload.payload.from} is nudging you. They're probably cooking.`,
             duration: 6000,
             icon: <Flame className="text-orange-500" />
@@ -250,12 +250,12 @@ export default function Page() {
   const currentProfile = data.profiles.find((profile) => profile.account_id === currentAccountId);
   if (!currentProfile) return <ProfileSetup accountId={currentAccountId} onCreated={refresh} />;
 
-  return <CompetitionApp 
-    currentAccountId={currentAccountId} 
-    data={data} 
-    onRefresh={refresh} 
+  return <CompetitionApp
+    currentAccountId={currentAccountId}
+    data={data}
+    onRefresh={refresh}
     onSync={() => syncPlatformConnections(currentAccountId, true)}
-    onLogout={() => setCurrentAccountId(null)} 
+    onLogout={() => setCurrentAccountId(null)}
   />;
 }
 
@@ -274,7 +274,7 @@ function LoginPage({ onLogin }: { onLogin: (id: string) => void }) {
       toast.error("Please enter both username and password");
       return;
     }
-    
+
     setBusy(true);
     const uname = username.trim().toLowerCase();
 
@@ -318,7 +318,7 @@ function LoginPage({ onLogin }: { onLogin: (id: string) => void }) {
         toast.success("Account created! Welcome to the arena.");
       }
     }
-    
+
     setBusy(false);
   };
 
@@ -353,7 +353,7 @@ function LoginPage({ onLogin }: { onLogin: (id: string) => void }) {
               Enter a username and password. New here? Your account will be created automatically.
             </p>
           </div>
-          
+
           <div className="space-y-4">
             <div>
               <label className="mb-2 block text-sm font-semibold" htmlFor="username">
@@ -369,7 +369,7 @@ function LoginPage({ onLogin }: { onLogin: (id: string) => void }) {
                 required
               />
             </div>
-            
+
             <div>
               <label className="mb-2 block text-sm font-semibold" htmlFor="password">
                 Password
@@ -384,7 +384,7 @@ function LoginPage({ onLogin }: { onLogin: (id: string) => void }) {
                 required
               />
             </div>
-            
+
             <Button className="mt-2 h-12 w-full" variant="rival" type="submit" disabled={busy}>
               {busy ? <Loader2 className="animate-spin" /> : <Zap />} Enter The Arena
             </Button>
@@ -409,12 +409,12 @@ function ProfileSetup({ accountId, onCreated }: { accountId: string; onCreated: 
   const submit = async (event: React.SyntheticEvent) => {
     event.preventDefault();
     setBusy(true);
-    const { error } = await supabase.from("profiles" as any).insert({ 
-      account_id: accountId, 
-      username: form.username.toLowerCase(), 
-      display_name: form.displayName, 
-      emoji: form.emoji, 
-      title: form.title 
+    const { error } = await supabase.from("profiles" as any).insert({
+      account_id: accountId,
+      username: form.username.toLowerCase(),
+      display_name: form.displayName,
+      emoji: form.emoji,
+      title: form.title
     });
     setBusy(false);
     if (error) {
@@ -447,7 +447,7 @@ function CompetitionApp({ currentAccountId, data, onRefresh, onSync, onLogout }:
       return friendships.some((f) => {
         return (
           ((f.sender_id === currentAccountId && f.receiver_id === u.id) ||
-           (f.sender_id === u.id && f.receiver_id === currentAccountId)) &&
+            (f.sender_id === u.id && f.receiver_id === currentAccountId)) &&
           f.status !== "declined"
         );
       });
@@ -470,11 +470,11 @@ function CompetitionApp({ currentAccountId, data, onRefresh, onSync, onLogout }:
       problems: data.problems.filter((p) => allowedUserIds.has(p.accountId)),
     };
   }, [data, squadUsers]);
-  
-  const logout = () => { 
+
+  const logout = () => {
     localStorage.removeItem("rivals_account_id");
     onLogout();
-    toast.success("Logged out"); 
+    toast.success("Logged out");
   };
 
   return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">The Arena</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} squadUsers={squadUsers} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}{view === "today-target" && <TodayTargetView currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}{view === "focus" && <FocusTodo currentAccountId={currentAccountId} />}{view === "focus-analytics" && <FocusAnalytics currentAccountId={currentAccountId} />}{view === "revision" && <RevisionView currentAccountId={currentAccountId} problems={squadData.problems} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={squadData.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={squadUsers} problems={squadData.problems} />}{view === "platform-stats" && <PlatformStats currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} />}{view === "hall-of-fame" && <HallOfFame users={squadUsers} problems={squadData.problems} />}{view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={allUsers} onRefresh={onRefresh} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={squadUsers} problems={squadData.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
@@ -495,7 +495,7 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
 
   useEffect(() => {
     const channel = supabase.channel('app_presence');
-    
+
     channel
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
@@ -505,8 +505,8 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           console.log("Joined presence channel as", currentAccountId);
-          const trackStatus = await channel.track({ 
-            id: currentAccountId, 
+          const trackStatus = await channel.track({
+            id: currentAccountId,
             account_id: currentAccountId,
             online_at: new Date().toISOString(),
             name: user.name
@@ -683,7 +683,7 @@ function TodayTarget({
   }, []);
 
   const [links, setLinks] = useState<string[]>([""]);
-  const [carryOverLinks, setCarryOverLinks] = useState<{link: string; day: string; slot: number}[]>([]);
+  const [carryOverLinks, setCarryOverLinks] = useState<{ link: string; day: string; slot: number }[]>([]);
   const [carryOverSolvedDraft, setCarryOverSolvedDraft] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [solvedDraft, setSolvedDraft] = useState<Record<string, boolean>>({});
@@ -728,9 +728,9 @@ function TodayTarget({
           },
         }));
         if (!solvedMeta[String(slotKey)]) {
-          setSolvedMeta(prev => ({ 
-            ...prev, 
-            [String(slotKey)]: { difficulty: meta.difficulty || "Medium", timeTaken: "25" } 
+          setSolvedMeta(prev => ({
+            ...prev,
+            [String(slotKey)]: { difficulty: meta.difficulty || "Medium", timeTaken: "25" }
           }));
         }
       }
@@ -758,10 +758,10 @@ function TodayTarget({
 
   const handleGetHint = async (slotKey: string, link: string) => {
     if (!link.trim() || fetchingHint[slotKey]) return;
-    
+
     const meta = fetchedTitles[slotKey];
     setFetchingHint(prev => ({ ...prev, [slotKey]: true }));
-    
+
     try {
       const res = await fetch("/api/problem-hint", {
         method: "POST",
@@ -773,7 +773,7 @@ function TodayTarget({
           difficulty: meta?.difficulty || "Medium"
         })
       });
-      
+
       if (res.ok) {
         const { hint } = await res.json();
         setHints(prev => ({ ...prev, [slotKey]: hint }));
@@ -808,7 +808,7 @@ function TodayTarget({
           try {
             const arr = JSON.parse(local) as string[];
             if (Array.isArray(arr)) setLinks(arr.length > 0 ? arr : [""]);
-          } catch {}
+          } catch { }
         }
       }
       setTimeout(() => setIsInitialLoad(false), 500);
@@ -863,20 +863,20 @@ function TodayTarget({
         try {
           const obj = JSON.parse(local) as Record<string, boolean>;
           if (mounted && obj && typeof obj === "object") setSolvedDraft(obj);
-        } catch {}
+        } catch { }
       }
 
       const carryLocalKey = `carry_over_solved_${currentAccountId}`;
       const carryLocal = localStorage.getItem(carryLocalKey);
       if (carryLocal && mounted) {
-        try { setCarryOverSolvedDraft(JSON.parse(carryLocal)); } catch {}
+        try { setCarryOverSolvedDraft(JSON.parse(carryLocal)); } catch { }
       }
 
       const loggedKey = `today_target_logged_${dayKey}_${currentAccountId}`;
       try {
         const saved = JSON.parse(localStorage.getItem(loggedKey) || "{}");
         if (mounted && saved && typeof saved === "object") setAlreadyLogged(saved);
-      } catch {}
+      } catch { }
 
       const { data: rows, error } = await (supabase as any)
         .from("today_target_solutions")
@@ -942,11 +942,11 @@ function TodayTarget({
   const normalizeUrl = (url: string | undefined | null): string => {
     if (!url) return "";
     let clean = url.trim().toLowerCase();
-    
+
     if (!clean.startsWith("http://") && !clean.startsWith("https://")) {
       clean = "https://" + clean;
     }
-    
+
     try {
       const parsed = new URL(clean);
       let host = parsed.hostname;
@@ -1022,7 +1022,7 @@ function TodayTarget({
       // We only skip if it's already marked in the current draft.
       // Even if it was "alreadyLogged", if it's currently unchecked, we want to re-detect it.
       if (!link.trim() || newDraft[slotKey]) return;
-      
+
       const slug = extractSlug(link).toLowerCase();
       if (slug && allSolvedSlugs.has(slug)) {
         newDraft[slotKey] = true;
@@ -1034,7 +1034,7 @@ function TodayTarget({
     carryOverLinks.forEach((co) => {
       const slotKey = `${co.day}_${co.slot}`;
       if (!co.link.trim() || newCarryDraft[slotKey]) return;
-      
+
       const slug = extractSlug(co.link).toLowerCase();
       if (slug && allSolvedSlugs.has(slug)) {
         newCarryDraft[slotKey] = true;
@@ -1057,7 +1057,7 @@ function TodayTarget({
   useEffect(() => {
     if (!pendingAutoSave.current || isSavingInProgressRef.current) return;
     pendingAutoSave.current = false;
- 
+
     // Small delay to let state settle, then trigger saveProgress
     const timer = setTimeout(async () => {
       if (isSavingInProgressRef.current) return;
@@ -1077,25 +1077,25 @@ function TodayTarget({
       for (let slot = 0; slot < currentLinks.length; slot++) {
         cleaned[String(slot)] = !!currentSolvedDraft[String(slot)];
       }
- 
+
       const carryCleaned: Record<string, boolean> = {};
       for (const co of currentCarryOverLinks) {
         const key = `${co.day}_${co.slot}`;
         carryCleaned[key] = !!currentCarryOverSolvedDraft[key];
       }
- 
+
       const newAlreadyLogged = { ...currentAlreadyLogged };
       let newlyLoggedCount = 0;
       const insertedUrls = new Set<string>();
- 
+
       try {
         // Save to localStorage
         const localKey = `today_target_solved_${dayKey}_${currentAccountId}`;
         localStorage.setItem(localKey, JSON.stringify(cleaned));
- 
+
         const carryLocalKey = `carry_over_solved_${currentAccountId}`;
         localStorage.setItem(carryLocalKey, JSON.stringify(carryCleaned));
- 
+
         // Log newly solved problems to the problems table
         for (let slot = 0; slot < currentLinks.length; slot++) {
           const slotKey = String(slot);
@@ -1129,7 +1129,7 @@ function TodayTarget({
             }
           }
         }
- 
+
         for (const co of currentCarryOverLinks) {
           const slotKey = `${co.day}_${co.slot}`;
           const link = co.link.trim();
@@ -1162,12 +1162,12 @@ function TodayTarget({
             }
           }
         }
- 
+
         // Save solved state
         const loggedKey = `today_target_logged_${dayKey}_${currentAccountId}`;
         localStorage.setItem(loggedKey, JSON.stringify(newAlreadyLogged));
         setAlreadyLogged(newAlreadyLogged);
- 
+
         // Persist to Supabase
         const rows = currentLinks.map((_, slot) => ({
           day: dayKey,
@@ -1176,7 +1176,7 @@ function TodayTarget({
           solved: !!cleaned[String(slot)],
           solved_at: cleaned[String(slot)] ? new Date().toISOString() : null,
         }));
- 
+
         const carryRows = currentCarryOverLinks.map(co => ({
           day: co.day,
           slot: co.slot,
@@ -1184,20 +1184,20 @@ function TodayTarget({
           solved: !!carryCleaned[`${co.day}_${co.slot}`],
           solved_at: carryCleaned[`${co.day}_${co.slot}`] ? new Date().toISOString() : null,
         }));
- 
+
         const allRows = [...rows, ...carryRows];
- 
+
         await (supabase as any)
           .from("today_target_solutions")
           .upsert(allRows, { onConflict: "day,slot,account_id" });
- 
+
         if (newlyLoggedCount > 0) {
           toast.success(`✅ Auto-saved ${newlyLoggedCount} solved problem${newlyLoggedCount > 1 ? "s" : ""}!`);
         }
- 
+
         // Remove successfully saved carry-overs from the state so they disappear from the UI
         setCarryOverLinks(prev => prev.filter(co => !carryCleaned[`${co.day}_${co.slot}`]));
- 
+
         await onRefresh?.();
       } catch (e) {
         console.error("Auto-save error:", e);
@@ -1206,7 +1206,7 @@ function TodayTarget({
         isSavingInProgressRef.current = false;
       }
     }, 500);
- 
+
     return () => clearTimeout(timer);
   }, [solvedDraft, carryOverSolvedDraft]);
 
@@ -1220,7 +1220,7 @@ function TodayTarget({
 
       if (error) {
         localStorage.setItem(`today_targets_${dayKey}`, JSON.stringify(cleaned));
-        toast.success("Saved (local)", { description: "Create `today_targets` table in Supabase to sync across users." });
+        toast.success("Saved (lcal)", { description: "Create `today_targets` table in Supabase to sync across users." });
       } else {
         toast.success("Saved targets", { description: "Shared with the squad." });
       }
@@ -1300,7 +1300,7 @@ function TodayTarget({
             .from("problems" as any)
             .delete()
             .in("id", toDelete);
-          
+
           // Reset their logged status in newAlreadyLogged so they can be re-logged if checked again
           for (let slot = 0; slot < currentLinks.length; slot++) {
             const link = currentLinks[slot]?.trim();
@@ -1326,7 +1326,7 @@ function TodayTarget({
 
       const localKey = `today_target_solved_${dayKey}_${currentAccountId}`;
       localStorage.setItem(localKey, JSON.stringify(cleaned));
-      
+
       const carryLocalKey = `carry_over_solved_${currentAccountId}`;
       localStorage.setItem(carryLocalKey, JSON.stringify(carryCleaned));
 
@@ -1362,7 +1362,7 @@ function TodayTarget({
           }
         }
       }
- 
+
       for (const co of currentCarryOverLinks) {
         const slotKey = `${co.day}_${co.slot}`;
         const link = co.link.trim();
@@ -1424,10 +1424,10 @@ function TodayTarget({
 
       if (error) {
         console.error("Supabase Save Error:", error);
-        toast.error("Failed to sync with database", { 
-          description: error.message.includes("check constraint") 
-            ? "Too many target links! Database limit reached." 
-            : error.message 
+        toast.error("Failed to sync with database", {
+          description: error.message.includes("check constraint")
+            ? "Too many target links! Database limit reached."
+            : error.message
         });
       } else {
         if (newlyLoggedCount > 0) {
@@ -1447,8 +1447,8 @@ function TodayTarget({
         const everyoneSolvedAll = users.every(u => {
           const solvedCount = currentLinks.filter((link, slot) => {
             if (!link.trim()) return false;
-            return u.id === currentAccountId 
-              ? !!cleaned[String(slot)] 
+            return u.id === currentAccountId
+              ? !!cleaned[String(slot)]
               : !!allSolved[String(slot)]?.has(u.id);
           }).length;
           return solvedCount === totalTargets;
@@ -1496,7 +1496,7 @@ function TodayTarget({
       }
     };
     loadAll();
-    
+
     // Subscribe to real-time changes & Presence
     const channel = supabase
       .channel(`today_arena_${dayKey}`)
@@ -1515,8 +1515,8 @@ function TodayTarget({
       )
       .subscribe();
 
-    return () => { 
-      mounted = false; 
+    return () => {
+      mounted = false;
       supabase.removeChannel(channel);
     };
   }, [dayKey, currentAccountId, users]);
@@ -1531,7 +1531,7 @@ function TodayTarget({
 
   return (
     <div className="space-y-6">
-      
+
       {/* ── Minimalist Header & Live multiplayer Standings ─────────────────── */}
       <div className="glass-panel rounded-2xl p-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-border/40 pb-4 mb-6">
@@ -1560,11 +1560,10 @@ function TodayTarget({
               return (
                 <div
                   key={u.id}
-                  className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
-                    isSelf 
-                      ? "border-primary/40 bg-primary/10 text-primary shadow-glow-sm" 
+                  className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${isSelf
+                      ? "border-primary/40 bg-primary/10 text-primary shadow-glow-sm"
                       : "border-border bg-card/60 text-foreground"
-                  }`}
+                    }`}
                 >
                   <span className="relative flex h-2 w-2">
                     {isOnline && (
@@ -1637,14 +1636,14 @@ function TodayTarget({
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     {link.trim() && (
                       <>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-11 shrink-0 gap-2 border border-primary/10 bg-primary/5 text-primary hover:bg-primary/10"
                           onClick={() => handleGetHint(slotKey, link)}
                           disabled={fetchingHint[slotKey]}
                         >
-                          {fetchingHint[slotKey] ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />} 
+                          {fetchingHint[slotKey] ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />}
                           {hints[slotKey] ? "Another Hint" : "Get AI Hint"}
                         </Button>
                         <Button variant="outline" size="sm" className="h-11 shrink-0 gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10" asChild>
@@ -1656,20 +1655,19 @@ function TodayTarget({
                           type="button"
                           title={bookmarkedLinks.has(link) ? "Remove bookmark" : "Bookmark problem"}
                           onClick={() => toggleLinkBookmark(link)}
-                          className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-md border px-3 text-xs font-bold transition ${
-                            bookmarkedLinks.has(link)
+                          className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-md border px-3 text-xs font-bold transition ${bookmarkedLinks.has(link)
                               ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
                               : "border-border bg-secondary/40 text-muted-foreground hover:border-accent/40 hover:text-accent"
-                          }`}
+                            }`}
                         >
                           {bookmarkedLinks.has(link) ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
                         </button>
                       </>
                     )}
                     {links.length > 1 && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-11 w-11 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                         onClick={() => {
                           // Re-key all slot-indexed state maps so the removed
@@ -1768,8 +1766,8 @@ function TodayTarget({
 
         {/* ── bottom action row ────────────────────────────────────────────── */}
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-border/40 pt-5">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="border-dashed text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all h-10 px-4"
             onClick={() => setLinks([...links, ""])}
           >
@@ -1777,7 +1775,7 @@ function TodayTarget({
           </Button>
 
           <Button variant="rival" className="h-10 font-bold" onClick={saveProgress} disabled={saveProgressBusy}>
-            {saveProgressBusy ? <Loader2 className="animate-spin mr-1.5 size-4" /> : <Zap className="mr-1.5 size-4" />} 
+            {saveProgressBusy ? <Loader2 className="animate-spin mr-1.5 size-4" /> : <Zap className="mr-1.5 size-4" />}
             Save My Progress
           </Button>
         </div>
@@ -1844,11 +1842,10 @@ function TodayTarget({
                           type="button"
                           title={bookmarkedLinks.has(link) ? "Remove bookmark" : "Bookmark problem"}
                           onClick={() => toggleLinkBookmark(link)}
-                          className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-md border px-3 text-xs font-bold transition ${
-                            bookmarkedLinks.has(link)
+                          className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-md border px-3 text-xs font-bold transition ${bookmarkedLinks.has(link)
                               ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
                               : "border-border bg-secondary/40 text-muted-foreground hover:border-accent/40 hover:text-accent"
-                          }`}
+                            }`}
                         >
                           {bookmarkedLinks.has(link) ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
                         </button>
@@ -1970,7 +1967,7 @@ function TodayRevisionPanel({
       const k = `today_revision_${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}_${currentAccountId}`;
       const raw = localStorage.getItem(k);
       if (raw) return JSON.parse(raw) as RevisionItem[];
-    } catch {}
+    } catch { }
     return [];
   });
 
@@ -2687,28 +2684,26 @@ function MyProblems({ currentAccountId, problems }: { currentAccountId: string; 
           <button
             type="button"
             onClick={() => { setActiveDs("All"); setDsSubTab("All"); }}
-            className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-bold transition ${
-              activeDs === "All"
+            className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-bold transition ${activeDs === "All"
                 ? "bg-primary text-primary-foreground shadow-glow"
                 : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
+              }`}
           >
             <span className="flex items-center gap-3">📋 All Topics</span>
             <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${activeDs === "All" ? "bg-white/20" : "bg-secondary"}`}>{counts.total}</span>
           </button>
-          
+
           <div className="my-2 h-px bg-border/50" />
-          
+
           {activeTopics.map(t => (
             <button
               key={t}
               type="button"
               onClick={() => { setActiveDs(t); setDsSubTab("All"); }}
-              className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-bold transition ${
-                activeDs === t
+              className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-bold transition ${activeDs === t
                   ? "bg-primary text-primary-foreground shadow-glow"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
+                }`}
             >
               <span className="flex items-center gap-3"><span className="text-lg leading-none">{DS_ICON_MAP[t]}</span> {t}</span>
               <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${activeDs === t ? "bg-white/20" : "bg-secondary"}`}>{byTopic[t]?.length ?? 0}</span>
@@ -2727,11 +2722,10 @@ function MyProblems({ currentAccountId, problems }: { currentAccountId: string; 
                     key={tab}
                     type="button"
                     onClick={() => setDsSubTab(tab)}
-                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${
-                      dsSubTab === tab
+                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${dsSubTab === tab
                         ? "bg-accent text-accent-foreground"
                         : "text-muted-foreground hover:bg-secondary"
-                    }`}
+                      }`}
                   >
                     {tab === "Bookmarked" && <Bookmark className="size-3" />}
                     {tab}
@@ -2750,11 +2744,10 @@ function MyProblems({ currentAccountId, problems }: { currentAccountId: string; 
                   key={f.key}
                   type="button"
                   onClick={() => setDiff(f.key)}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${
-                    diff === f.key
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${diff === f.key
                       ? "bg-primary text-primary-foreground shadow-glow"
                       : `${f.tone} hover:bg-secondary`
-                  }`}
+                    }`}
                 >
                   {f.label}
                   <span className={`rounded-full px-1.5 text-[10px] ${diff === f.key ? "bg-primary-foreground/20" : "bg-secondary"}`}>{f.count}</span>
@@ -2882,11 +2875,10 @@ function ProblemList({ problems, bookmarks, onToggleBookmark }: { problems: Prob
                     type="button"
                     onClick={() => onToggleBookmark(p.id)}
                     title={isBookmarked ? "Remove bookmark" : "Bookmark this problem"}
-                    className={`rounded-md border p-2 transition ${
-                      isBookmarked
+                    className={`rounded-md border p-2 transition ${isBookmarked
                         ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
                         : "border-border text-muted-foreground hover:border-accent/40 hover:text-accent"
-                    }`}
+                      }`}
                   >
                     {isBookmarked ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
                   </button>
@@ -2950,7 +2942,7 @@ function HallOfFame({ users, problems }: { users: MutualUser[]; problems: Proble
         <h3 className="text-4xl font-black">The Main Hall</h3>
         <p className="mt-2 text-muted-foreground text-lg">The arena of ultimate consistency.</p>
       </div>
-      
+
       <div className="grid gap-4">
         {ranked.map((user, index) => (
           <div key={user.id} className={`flex items-center justify-between rounded-2xl p-5 transition-all ${index === 0 ? "bg-primary/20 border-2 border-primary shadow-glow scale-[1.02]" : "bg-card/70 border border-border"}`}>
@@ -3085,11 +3077,10 @@ function Analytics({ currentAccountId, users, problems }: { currentAccountId: st
                 key={f.id}
                 type="button"
                 onClick={() => setSelectedFriendId(f.id)}
-                className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
-                  selectedFriendId === f.id
+                className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${selectedFriendId === f.id
                     ? "border-primary bg-primary/10 text-primary shadow-glow-sm"
                     : "border-border bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                }`}
+                  }`}
               >
                 <span
                   className="inline-block h-2.5 w-2.5 rounded-full"
@@ -3195,16 +3186,16 @@ function Profile({ currentAccountId, profiles, users, problems, onRefresh, onLog
   const [mutualUsername, setMutualUsername] = useState(users.find((item) => item.id === profile.rival_user_id)?.username ?? "");
   const [resetting, setResetting] = useState(false);
 
-  const saveMutual = async () => { 
-    const mutual = users.find((item) => item.username.toLowerCase() === mutualUsername.trim().toLowerCase()); 
-    if (!mutual || mutual.id === currentAccountId) { 
-      toast.error("Enter a valid username from the squad"); 
-      return; 
-    } 
-    const { error } = await supabase.from("profiles" as any).update({ rival_user_id: mutual.id }).eq("account_id", currentAccountId); 
-    if (error) { toast.error(error.message); return; } 
-    toast.success("Mutual duo updated"); 
-    await onRefresh(); 
+  const saveMutual = async () => {
+    const mutual = users.find((item) => item.username.toLowerCase() === mutualUsername.trim().toLowerCase());
+    if (!mutual || mutual.id === currentAccountId) {
+      toast.error("Enter a valid username from the squad");
+      return;
+    }
+    const { error } = await supabase.from("profiles" as any).update({ rival_user_id: mutual.id }).eq("account_id", currentAccountId);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Mutual duo updated");
+    await onRefresh();
   };
 
   const handleReset = async () => {
@@ -3280,13 +3271,13 @@ function SquadRequests({ currentAccountId, users, onRefresh }: { currentAccountI
       <div className="glass-panel rounded-2xl p-6">
         <h3 className="text-2xl font-black mb-2">Build Your Squad</h3>
         <p className="text-sm text-muted-foreground mb-6">Send requests to mutuals to start tracking progress together.</p>
-        
+
         <div className="flex flex-col gap-2 sm:flex-row">
-          <input 
-            value={targetUsername} 
-            onChange={(e) => setTargetUsername(e.target.value)} 
-            className="h-11 flex-1 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" 
-            placeholder="Search username..." 
+          <input
+            value={targetUsername}
+            onChange={(e) => setTargetUsername(e.target.value)}
+            className="h-11 flex-1 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30"
+            placeholder="Search username..."
           />
           <Button variant="rival" onClick={sendRequest} disabled={busy}>
             {busy ? <Loader2 className="animate-spin" /> : <UserPlus />} Send Request
