@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { AppData, Difficulty, Friendship, MutualUser, PlatformConnection, Problem, Profile } from "@/types/rivals";
+import { AppData, Difficulty, Friendship, MutualUser, PlatformConnection, Problem, Profile, Revision } from "@/types/rivals";
 
 export const platforms = ["LeetCode", "NeetCode", "Codeforces", "HackerRank", "Custom..."];
 export const difficulties = ["Easy", "Medium", "Hard"] as const;
@@ -42,9 +42,13 @@ export function mapUser(profile: Profile, problems?: Problem[]): MutualUser {
   };
 }
 
-export function userStats(problems: Problem[], accountId: string) {
+export function userStats(problems: Problem[], accountId: string, revisions?: Revision[]) {
   const mine = [...problems].filter((problem) => problem.accountId === accountId)
     .sort((a, b) => +new Date(b.solvedAt) - +new Date(a.solvedAt));
+  
+  const mineRevisions = revisions
+    ? [...revisions].filter((r) => r.accountId === accountId)
+    : [];
   
   const now = new Date();
   const todayKey = now.toDateString();
@@ -55,7 +59,10 @@ export function userStats(problems: Problem[], accountId: string) {
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - 6);
   
-  const solvedDays = new Set(mine.map((problem) => new Date(problem.solvedAt).toDateString()));
+  const solvedDays = new Set([
+    ...mine.map((problem) => new Date(problem.solvedAt).toDateString()),
+    ...mineRevisions.map((r) => new Date(r.revisedAt).toDateString()),
+  ]);
   
   const solvedToday = solvedDays.has(todayKey);
   const solvedYesterday = solvedDays.has(yesterdayKey);
@@ -72,15 +79,21 @@ export function userStats(problems: Problem[], accountId: string) {
     }
   }
 
+  const todaySolved = mine.filter((p) => new Date(p.solvedAt).toDateString() === todayKey).length;
+  const todayRevised = mineRevisions.filter((r) => new Date(r.revisedAt).toDateString() === todayKey).length;
+
+  const weekSolved = mine.filter((p) => new Date(p.solvedAt) >= weekStart).length;
+  const weekRevised = mineRevisions.filter((r) => new Date(r.revisedAt) >= weekStart).length;
+
   return {
     total: mine.length,
-    today: mine.filter((problem) => new Date(problem.solvedAt).toDateString() === todayKey).length,
-    week: mine.filter((problem) => new Date(problem.solvedAt) >= weekStart).length,
+    today: todaySolved + todayRevised,
+    week: weekSolved + weekRevised,
     streak,
     hard: mine.filter((problem) => problem.difficulty === "Hard").length,
     minutes: mine.reduce((sum, problem) => sum + problem.timeTaken, 0),
     solvedToday,
-    xp: mine.reduce((acc, p) => acc + (p.difficulty === 'Hard' ? 100 : p.difficulty === 'Medium' ? 30 : 10), 0),
+    xp: mine.reduce((acc, p) => acc + (p.difficulty === 'Hard' ? 100 : p.difficulty === 'Medium' ? 30 : 10), 0) + todayRevised * 15,
   };
 }
 
@@ -107,19 +120,31 @@ export function getFriendId(currentAccountId: string, users: MutualUser[]) {
 }
 
 export async function loadAppData(): Promise<AppData> {
-  const [profilesResult, problemsResult, connectionsResult, friendshipsResult] = await Promise.all([
+  const [profilesResult, problemsResult, connectionsResult, friendshipsResult, revisionsResult] = await Promise.all([
     supabase.from("profiles").select("*").order("created_at", { ascending: true }),
     supabase.from("problems").select("*").order("solved_at", { ascending: false }),
     supabase.from("platform_connections" as any).select("*").order("created_at", { ascending: true }),
     supabase.from("friendships" as any).select("*"),
+    supabase.from("revisions" as any).select("*").order("revised_at", { ascending: false }),
   ]);
   if (profilesResult.error) throw profilesResult.error;
   if (problemsResult.error) throw problemsResult.error;
-  // platform_connections or friendships might not exist yet, so we don't throw on error
   return {
     profiles: (profilesResult.data ?? []) as any as Profile[],
     problems: (problemsResult.data ?? []).map(mapProblem),
     platformConnections: (connectionsResult.data ?? []) as any as PlatformConnection[],
     friendships: (friendshipsResult?.data ?? []) as any as Friendship[],
+    revisions: (revisionsResult?.data ?? []).map((r: any) => ({
+      id: r.id,
+      accountId: r.account_id,
+      problemId: r.problem_id,
+      name: r.name,
+      link: r.link,
+      platform: r.platform,
+      difficulty: r.difficulty,
+      topic: r.topic,
+      revisedAt: r.revised_at,
+      createdAt: r.created_at,
+    })),
   };
 }

@@ -89,10 +89,24 @@ export type Friendship = {
   updated_at: string;
 };
 
+export type Revision = {
+  id: string;
+  accountId: string;
+  problemId: string | null;
+  name: string | null;
+  link: string | null;
+  platform: string | null;
+  difficulty: string | null;
+  topic: string | null;
+  revisedAt: string;
+  createdAt: string;
+};
+
 export type AppData = {
   profiles: Profile[];
   problems: Problem[];
   platformConnections: PlatformConnection[];
   friendships: Friendship[];
+  revisions: Revision[];
 };
 

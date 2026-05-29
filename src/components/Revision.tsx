@@ -10,8 +10,10 @@ import {
   RotateCcw,
 } from "lucide-react";
 
-import type { Problem } from "@/types/rivals";
+import type { Problem, Revision } from "@/types/rivals";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 /* ─────────────────────────────────────────────────────────────────────────
    Revision state (persisted in localStorage)
@@ -116,21 +118,40 @@ function formatWeekLabel(start: Date, end: Date) {
 export function RevisionView({
   currentAccountId,
   problems,
+  revisions = [],
+  onRefresh,
 }: {
   currentAccountId: string;
   problems: Problem[];
+  revisions?: Revision[];
+  onRefresh?: () => void;
 }) {
-  const [state, setState] = useState<RevisionState>(() => loadState(currentAccountId));
   const [openDays, setOpenDays] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    setState(loadState(currentAccountId));
-  }, [currentAccountId]);
 
   const myProblems = useMemo(
     () => problems.filter((p) => p.accountId === currentAccountId),
     [problems, currentAccountId]
   );
+
+  const state = useMemo(() => {
+    const byProblemId: Record<string, RevisionEntry> = {};
+    const myRevs = (revisions || []).filter((r) => r.accountId === currentAccountId);
+    for (const p of problems) {
+      if (p.accountId !== currentAccountId) continue;
+      const problemRevs = myRevs.filter((r) => r.problemId === p.id);
+      const revisedCount = problemRevs.length;
+      const todayKey = toLocalDateKey(new Date().toISOString());
+      const hasTodayRev = problemRevs.some((r) => toLocalDateKey(r.revisedAt) === todayKey);
+      const latestRev = problemRevs[0];
+      byProblemId[p.id] = {
+        problemId: p.id,
+        revised: hasTodayRev,
+        revisedAt: latestRev ? latestRev.revisedAt : null,
+        revisedCount,
+      };
+    }
+    return { version: 2 as const, byProblemId };
+  }, [revisions, problems, currentAccountId]);
 
   /* ── All calendar weeks that have problems (+ current week) ── */
   const weeks = useMemo(() => {
@@ -197,52 +218,67 @@ export function RevisionView({
   }, []);
 
   /* ── Toggle revision for a single problem ── */
-  const toggleRevised = (problemId: string) => {
-    setState((prev) => {
-      const existing = prev.byProblemId[problemId];
-      const wasRevised = existing?.revised ?? false;
-      const now = new Date().toISOString();
-      const next: RevisionState = {
-        version: 2,
-        byProblemId: {
-          ...prev.byProblemId,
-          [problemId]: {
-            problemId,
-            revised: !wasRevised,
-            revisedAt: wasRevised ? null : now,
-            revisedCount: (existing?.revisedCount ?? 0) + (wasRevised ? 0 : 1),
-          },
-        },
-      };
-      saveState(currentAccountId, next);
-      return next;
-    });
+  const toggleRevised = async (problemId: string) => {
+    const entry = state.byProblemId[problemId];
+    const isRevised = entry?.revised ?? false;
+    if (isRevised) {
+      const todayKey = toLocalDateKey(new Date().toISOString());
+      const todayRev = (revisions || []).find(
+        (r) => r.accountId === currentAccountId && r.problemId === problemId && toLocalDateKey(r.revisedAt) === todayKey
+      );
+      if (todayRev) {
+        const { error } = await supabase
+          .from("revisions" as any)
+          .delete()
+          .eq("id", todayRev.id);
+        if (error) {
+          toast.error(error.message);
+        } else {
+          toast.success("Revision undone");
+          onRefresh?.();
+        }
+      }
+    } else {
+      const { error } = await supabase
+        .from("revisions" as any)
+        .insert({
+          account_id: currentAccountId,
+          problem_id: problemId,
+          revised_at: new Date().toISOString(),
+        });
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Problem revised");
+        onRefresh?.();
+      }
+    }
   };
 
   /* ── Mark all problems in a day as revised ── */
-  const markAllRevised = (dayKey: string) => {
+  const markAllRevised = async (dayKey: string) => {
     const probs = problemsByDay[dayKey] ?? [];
-    setState((prev) => {
-      const now = new Date().toISOString();
-      const updates: Record<string, RevisionEntry> = {};
-      for (const p of probs) {
-        const existing = prev.byProblemId[p.id];
-        if (!existing?.revised) {
-          updates[p.id] = {
-            problemId: p.id,
-            revised: true,
-            revisedAt: now,
-            revisedCount: (existing?.revisedCount ?? 0) + 1,
-          };
-        }
+    const toInsert = [];
+    for (const p of probs) {
+      const entry = state.byProblemId[p.id];
+      if (!entry?.revised) {
+        toInsert.push({
+          account_id: currentAccountId,
+          problem_id: p.id,
+          revised_at: new Date().toISOString(),
+        });
       }
-      const next: RevisionState = {
-        version: 2,
-        byProblemId: { ...prev.byProblemId, ...updates },
-      };
-      saveState(currentAccountId, next);
-      return next;
-    });
+    }
+    if (toInsert.length === 0) return;
+    const { error } = await supabase
+      .from("revisions" as any)
+      .insert(toInsert);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(`Marked ${toInsert.length} problems as revised`);
+      onRefresh?.();
+    }
   };
 
   /* ── Toggle day open/closed ── */

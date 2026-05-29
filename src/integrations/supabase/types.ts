@@ -125,6 +125,109 @@ export type Database = {
         }
         Relationships: []
       }
+      revisions: {
+        Row: {
+          created_at: string
+          difficulty: string | null
+          id: string
+          link: string | null
+          name: string | null
+          platform: string | null
+          problem_id: string | null
+          revised_at: string
+          topic: string | null
+          account_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty?: string | null
+          id?: string
+          link?: string | null
+          name?: string | null
+          platform?: string | null
+          problem_id?: string | null
+          revised_at?: string
+          topic?: string | null
+          account_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty?: string | null
+          id?: string
+          link?: string | null
+          name?: string | null
+          platform?: string | null
+          problem_id?: string | null
+          revised_at?: string
+          topic?: string | null
+          account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revisions_problem_id_fkey"
+            columns: ["problem_id"]
+            isOneToOne: false
+            referencedRelation: "problems"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      today_revisions: {
+        Row: {
+          added_at: string
+          created_at: string
+          day: string
+          difficulty: string
+          done: boolean
+          id: string
+          link: string
+          name: string
+          platform: string
+          problem_id: string | null
+          topic: string
+          updated_at: string
+          account_id: string
+        }
+        Insert: {
+          added_at?: string
+          created_at?: string
+          day: string
+          difficulty?: string
+          done?: boolean
+          id: string
+          link?: string
+          name: string
+          platform?: string
+          problem_id?: string | null
+          topic?: string
+          updated_at?: string
+          account_id: string
+        }
+        Update: {
+          added_at?: string
+          created_at?: string
+          day?: string
+          difficulty?: string
+          done?: boolean
+          id?: string
+          link?: string
+          name?: string
+          platform?: string
+          problem_id?: string | null
+          topic?: string
+          updated_at?: string
+          account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "today_revisions_problem_id_fkey"
+            columns: ["problem_id"]
+            isOneToOne: false
+            referencedRelation: "problems"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -64,7 +64,8 @@ import {
   PlatformConnection,
   Problem,
   Profile as ProfileType,
-  MutualUser
+  MutualUser,
+  Revision
 } from "@/types/rivals";
 import {
   difficulties,
@@ -100,7 +101,7 @@ const navItems = [
 export default function Page() {
   const [currentAccountId, setCurrentAccountId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<AppData>({ profiles: [], friendships: [], problems: [], platformConnections: [] });
+  const [data, setData] = useState<AppData>({ profiles: [], friendships: [], problems: [], platformConnections: [], revisions: [] });
 
   useEffect(() => {
     const id = localStorage.getItem("rivals_account_id");
@@ -477,7 +478,7 @@ function CompetitionApp({ currentAccountId, data, onRefresh, onSync, onLogout }:
     toast.success("Logged out");
   };
 
-  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">The Arena</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} squadUsers={squadUsers} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}{view === "today-target" && <TodayTargetView currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}{view === "focus" && <FocusTodo currentAccountId={currentAccountId} />}{view === "focus-analytics" && <FocusAnalytics currentAccountId={currentAccountId} />}{view === "revision" && <RevisionView currentAccountId={currentAccountId} problems={squadData.problems} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={squadData.problems} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={squadUsers} problems={squadData.problems} />}{view === "platform-stats" && <PlatformStats currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} />}{view === "hall-of-fame" && <HallOfFame users={squadUsers} problems={squadData.problems} />}{view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={allUsers} onRefresh={onRefresh} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={squadUsers} problems={squadData.problems} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
+  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">The Arena</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} squadUsers={squadUsers} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}{view === "today-target" && <TodayTargetView currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}{view === "focus" && <FocusTodo currentAccountId={currentAccountId} />}{view === "focus-analytics" && <FocusAnalytics currentAccountId={currentAccountId} />}{view === "revision" && <RevisionView currentAccountId={currentAccountId} problems={squadData.problems} revisions={squadData.revisions} onRefresh={onRefresh} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={squadData.problems} revisions={squadData.revisions} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={squadUsers} problems={squadData.problems} />}{view === "platform-stats" && <PlatformStats currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} />}{view === "hall-of-fame" && <HallOfFame users={squadUsers} problems={squadData.problems} revisions={squadData.revisions} />}{view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={allUsers} onRefresh={onRefresh} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={squadUsers} problems={squadData.problems} revisions={squadData.revisions} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
 }
 
 function Header({ user, squadUsers }: { user: MutualUser; squadUsers: MutualUser[] }) {
@@ -489,7 +490,7 @@ function Header({ user, squadUsers }: { user: MutualUser; squadUsers: MutualUser
 }
 
 function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { currentAccountId: string; data: AppData; users: MutualUser[]; onRefresh: () => Promise<void>; onSync: () => Promise<void> }) {
-  const mine = userStats(data.problems, currentAccountId);
+  const mine = userStats(data.problems, currentAccountId, data.revisions);
   const user = users.find((item) => item.id === currentAccountId)!;
   const [presence, setPresence] = useState<Record<string, any>>({});
 
@@ -571,7 +572,7 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
               </div>
               {/* Then all friends */}
               {friends.map(f => {
-                const fStats = userStats(data.problems, f.id);
+                const fStats = userStats(data.problems, f.id, data.revisions);
                 const fPlatformTotal = data.platformConnections
                   .filter(c => c.account_id === f.id)
                   .reduce((acc, c) => acc + ((c.stats as any)?.totalSolved ?? 0), 0);
@@ -656,7 +657,7 @@ function TodayTargetView({ currentAccountId, data, users, onRefresh, onSync }: {
         presence={presence}
       />
 
-      <TodayRevisionPanel currentAccountId={currentAccountId} problems={data.problems} />
+      <TodayRevisionPanel currentAccountId={currentAccountId} problems={data.problems} onRefresh={onRefresh} />
     </section>
   );
 }
@@ -1916,6 +1917,7 @@ type RevisionItem = {
   done: boolean;
   addedAt: string;
   source: "picked" | "new";
+  problemId?: string | null;
 };
 
 function difficultyBadgeClass(d: string) {
@@ -1949,31 +1951,45 @@ function deriveRevisionPlatform(url: string) {
 function TodayRevisionPanel({
   currentAccountId,
   problems,
+  onRefresh,
 }: {
   currentAccountId: string;
   problems: Problem[];
+  onRefresh?: () => void;
 }) {
   const dayKey = useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
 
-  const storageKey = `today_revision_${dayKey}_${currentAccountId}`;
+  const [items, setItems] = useState<RevisionItem[]>([]);
 
-  const [items, setItems] = useState<RevisionItem[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const d = new Date();
-      const k = `today_revision_${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}_${currentAccountId}`;
-      const raw = localStorage.getItem(k);
-      if (raw) return JSON.parse(raw) as RevisionItem[];
-    } catch { }
-    return [];
-  });
+  const fetchTodayRevisions = async () => {
+    const { data: res, error } = await supabase
+      .from("today_revisions" as any)
+      .select("*")
+      .eq("account_id", currentAccountId)
+      .eq("day", dayKey);
+    if (!error && res) {
+      setItems(res.map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        link: r.link,
+        platform: r.platform,
+        difficulty: r.difficulty,
+        topic: r.topic,
+        done: r.done,
+        addedAt: r.added_at,
+        source: r.problem_id ? "picked" as const : "new" as const,
+        problemId: r.problem_id,
+      })));
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(items));
-  }, [items, storageKey]);
+    fetchTodayRevisions();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentAccountId, dayKey]);
 
   // ── Link input state ───────────────────────────────────────────────────
   const [linkInputOpen, setLinkInputOpen] = useState(false);
@@ -1996,7 +2012,7 @@ function TodayRevisionPanel({
     return myProblems.filter((p) => p.name.toLowerCase().includes(q) || p.platform.toLowerCase().includes(q) || p.topic.toLowerCase().includes(q)).slice(0, 50);
   }, [myProblems, pickerSearch]);
 
-  const addedIds = useMemo(() => new Set(items.map((i) => i.id)), [items]);
+  const addedIds = useMemo(() => new Set(items.map((i) => i.problemId).filter(Boolean)), [items]);
 
   // ── Fetch metadata for a link ──────────────────────────────────────────
   const fetchMetaForLink = async (url: string) => {
@@ -2019,38 +2035,126 @@ function TodayRevisionPanel({
     }
   };
 
-  const commitLinkItem = () => {
+  const commitLinkItem = async () => {
     const link = linkDraft.trim();
     if (!link) return;
     const meta = fetchedMeta;
-    setItems((prev) => [
-      ...prev,
-      {
-        id: `new_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    const newId = `new_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const { error } = await supabase
+      .from("today_revisions" as any)
+      .insert({
+        id: newId,
+        account_id: currentAccountId,
+        day: dayKey,
         name: meta?.name || deriveRevisionName(link),
         link,
         platform: meta?.platform || deriveRevisionPlatform(link),
         difficulty: meta?.difficulty || "Medium",
         topic: meta?.topic || "DSA",
         done: false,
-        addedAt: new Date().toISOString(),
-        source: "new",
-      },
-    ]);
-    toast.success(`Added "${meta?.name || deriveRevisionName(link)}" to revision`);
-    setLinkDraft("");
-    setFetchedMeta(null);
-    setLinkInputOpen(false);
+        added_at: new Date().toISOString(),
+      });
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(`Added "${meta?.name || deriveRevisionName(link)}" to revision`);
+      setLinkDraft("");
+      setFetchedMeta(null);
+      setLinkInputOpen(false);
+      fetchTodayRevisions();
+    }
   };
 
-  const addFromPicker = (p: Problem) => {
+  const addFromPicker = async (p: Problem) => {
     if (addedIds.has(p.id)) { toast.info("Already in revision list"); return; }
-    setItems((prev) => [...prev, { id: p.id, name: p.name, link: p.link, platform: p.platform, difficulty: p.difficulty, topic: p.topic, done: false, addedAt: new Date().toISOString(), source: "picked" }]);
-    toast.success(`Added "${p.name}" to revision`);
+    const { error } = await supabase
+      .from("today_revisions" as any)
+      .insert({
+        id: p.id,
+        account_id: currentAccountId,
+        day: dayKey,
+        problem_id: p.id,
+        name: p.name,
+        link: p.link,
+        platform: p.platform,
+        difficulty: p.difficulty,
+        topic: p.topic,
+        done: false,
+        added_at: new Date().toISOString(),
+      });
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(`Added "${p.name}" to revision`);
+      fetchTodayRevisions();
+    }
   };
 
-  const toggleDone = (id: string) => setItems((prev) => prev.map((it) => (it.id === id ? { ...it, done: !it.done } : it)));
-  const removeItem = (id: string) => { setItems((prev) => prev.filter((it) => it.id !== id)); toast.success("Removed from revision list"); };
+  const toggleDone = async (id: string) => {
+    const item = items.find((it) => it.id === id);
+    if (!item) return;
+    const newDone = !item.done;
+
+    const { error: updateError } = await supabase
+      .from("today_revisions" as any)
+      .update({ done: newDone })
+      .eq("id", id);
+
+    if (updateError) {
+      toast.error(updateError.message);
+      return;
+    }
+
+    if (newDone) {
+      const { error: insertError } = await supabase
+        .from("revisions" as any)
+        .insert({
+          account_id: currentAccountId,
+          problem_id: item.problemId || null,
+          name: item.name,
+          link: item.link,
+          platform: item.platform,
+          difficulty: item.difficulty,
+          topic: item.topic,
+          revised_at: new Date().toISOString(),
+        });
+      if (insertError) {
+        toast.error(insertError.message);
+      } else {
+        toast.success("Revision logged as solved!");
+      }
+    } else {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const { error: deleteError } = await supabase
+        .from("revisions" as any)
+        .delete()
+        .eq("account_id", currentAccountId)
+        .eq(item.problemId ? "problem_id" : "link", item.problemId || item.link)
+        .gte("revised_at", todayStart.toISOString());
+      if (deleteError) {
+        toast.error(deleteError.message);
+      } else {
+        toast.success("Revision undone");
+      }
+    }
+
+    fetchTodayRevisions();
+    onRefresh?.();
+  };
+
+  const removeItem = async (id: string) => {
+    const { error } = await supabase
+      .from("today_revisions" as any)
+      .delete()
+      .eq("id", id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Removed from revision list");
+      fetchTodayRevisions();
+    }
+  };
 
   const doneCount = items.filter((i) => i.done).length;
   const revisionPct = items.length > 0 ? Math.round((doneCount / items.length) * 100) : 0;
@@ -2352,10 +2456,25 @@ function SquadActivity({ data, users }: { data: AppData; users: MutualUser[] }) 
     </div>
   );
 }
-function Heatmap({ currentAccountId, problems, title = "Contribution Heatmap" }: { currentAccountId: string; problems: Problem[]; title?: string }) {
-  const mine = useMemo(
+function Heatmap({
+  currentAccountId,
+  problems,
+  revisions = [],
+  title = "Contribution Heatmap",
+}: {
+  currentAccountId: string;
+  problems: Problem[];
+  revisions?: Revision[];
+  title?: string;
+}) {
+  const mineProblems = useMemo(
     () => problems.filter((problem) => problem.accountId === currentAccountId),
     [problems, currentAccountId],
+  );
+
+  const mineRevisions = useMemo(
+    () => (revisions || []).filter((r) => r.accountId === currentAccountId),
+    [revisions, currentAccountId],
   );
 
   const {
@@ -2370,10 +2489,16 @@ function Heatmap({ currentAccountId, problems, title = "Contribution Heatmap" }:
       return `${y}-${m}-${d}`;
     };
 
-    const countsByDay = new Map<string, number>();
-    for (const p of mine) {
+    const countsByDay = new Map<string, { solved: number; revised: number }>();
+    for (const p of mineProblems) {
       const key = localDateKey(new Date(p.solvedAt));
-      countsByDay.set(key, (countsByDay.get(key) ?? 0) + 1);
+      const existing = countsByDay.get(key) || { solved: 0, revised: 0 };
+      countsByDay.set(key, { ...existing, solved: existing.solved + 1 });
+    }
+    for (const r of mineRevisions) {
+      const key = localDateKey(new Date(r.revisedAt));
+      const existing = countsByDay.get(key) || { solved: 0, revised: 0 };
+      countsByDay.set(key, { ...existing, revised: existing.revised + 1 });
     }
 
     const today = new Date();
@@ -2400,12 +2525,13 @@ function Heatmap({ currentAccountId, problems, title = "Contribution Heatmap" }:
 
     let computedMax = 0;
     const all = dates.map((d) => {
-      const count = countsByDay.get(localDateKey(d)) ?? 0;
-      if (count > computedMax) computedMax = count;
-      return { date: d, count };
+      const counts = countsByDay.get(localDateKey(d)) || { solved: 0, revised: 0 };
+      const total = counts.solved + counts.revised;
+      if (total > computedMax) computedMax = total;
+      return { date: d, solved: counts.solved, revised: counts.revised, total };
     });
 
-    const computedWeeks: { days: { date: Date; count: number }[] }[] = [];
+    const computedWeeks: { days: { date: Date; solved: number; revised: number; total: number }[] }[] = [];
     for (let i = 0; i < all.length; i += 7) {
       computedWeeks.push({ days: all.slice(i, i + 7) });
     }
@@ -2427,11 +2553,12 @@ function Heatmap({ currentAccountId, problems, title = "Contribution Heatmap" }:
     });
 
     return { weeks: computedWeeks, monthLabels: labels, maxCount: computedMax };
-  }, [mine]);
+  }, [mineProblems, mineRevisions]);
 
   const [hovered, setHovered] = useState<{
     date: Date;
-    count: number;
+    solved: number;
+    revised: number;
     anchor: { x: number; y: number };
   } | null>(null);
 
@@ -2491,8 +2618,8 @@ function Heatmap({ currentAccountId, problems, title = "Contribution Heatmap" }:
               {weeks.map((week, weekIndex) => (
                 <div key={weekIndex} className="gh-heatmap-week" role="row">
                   {week.days.map((d, dayIndex) => {
-                    const level = levelFor(d.count);
-                    const label = `${d.count} solved on ${dayFormatter.format(d.date)}`;
+                    const level = levelFor(d.total);
+                    const label = `${d.solved} solved, ${d.revised} revised on ${dayFormatter.format(d.date)}`;
                     return (
                       <button
                         key={dayIndex}
@@ -2504,7 +2631,8 @@ function Heatmap({ currentAccountId, problems, title = "Contribution Heatmap" }:
                           const parent = (e.currentTarget.offsetParent as HTMLElement | null)?.getBoundingClientRect();
                           setHovered({
                             date: d.date,
-                            count: d.count,
+                            solved: d.solved,
+                            revised: d.revised,
                             anchor: {
                               x: rect.left - (parent?.left ?? 0) + rect.width / 2,
                               y: rect.top - (parent?.top ?? 0),
@@ -2517,7 +2645,8 @@ function Heatmap({ currentAccountId, problems, title = "Contribution Heatmap" }:
                           const parent = (e.currentTarget.offsetParent as HTMLElement | null)?.getBoundingClientRect();
                           setHovered({
                             date: d.date,
-                            count: d.count,
+                            solved: d.solved,
+                            revised: d.revised,
                             anchor: {
                               x: rect.left - (parent?.left ?? 0) + rect.width / 2,
                               y: rect.top - (parent?.top ?? 0),
@@ -2545,7 +2674,9 @@ function Heatmap({ currentAccountId, problems, title = "Contribution Heatmap" }:
             role="status"
           >
             <div className="gh-heatmap-tooltip-inner">
-              <div className="text-sm font-semibold">{hovered.count} solved</div>
+              <div className="text-sm font-semibold">
+                {hovered.solved} solved, {hovered.revised} revision
+              </div>
               <div className="text-xs opacity-80">{dayFormatter.format(hovered.date)}</div>
             </div>
             <div className="gh-heatmap-tooltip-caret" aria-hidden />
@@ -2610,7 +2741,7 @@ const DS_ICON_MAP: Record<string, string> = {
   Recursion: "🔄", Math: "➗", "Bit Manipulation": "0️⃣", Other: "📦",
 };
 
-function MyProblems({ currentAccountId, problems }: { currentAccountId: string; problems: Problem[] }) {
+function MyProblems({ currentAccountId, problems, revisions = [] }: { currentAccountId: string; problems: Problem[]; revisions?: Revision[] }) {
   const [filter, setFilter] = useState("");
   const [diff, setDiff] = useState<"All" | "Easy" | "Medium" | "Hard">("All");
   const [activeDs, setActiveDs] = useState<DsTopic | "All">("All");
@@ -2775,7 +2906,7 @@ function MyProblems({ currentAccountId, problems }: { currentAccountId: string; 
                       </div>
                       <div className="h-px flex-1 bg-border/60" />
                     </div>
-                    <ProblemList problems={list} bookmarks={bookmarks} onToggleBookmark={toggleBookmark} />
+                    <ProblemList problems={list} bookmarks={bookmarks} onToggleBookmark={toggleBookmark} revisions={revisions} />
                   </div>
                 );
               })}
@@ -2809,6 +2940,7 @@ function MyProblems({ currentAccountId, problems }: { currentAccountId: string; 
                 )}
                 bookmarks={bookmarks}
                 onToggleBookmark={toggleBookmark}
+                revisions={revisions}
               />
             </div>
           )}
@@ -2818,8 +2950,47 @@ function MyProblems({ currentAccountId, problems }: { currentAccountId: string; 
   );
 }
 
-function ProblemList({ problems, bookmarks, onToggleBookmark }: { problems: Problem[]; bookmarks?: Set<string>; onToggleBookmark?: (id: string) => void }) {
+function ProblemList({
+  problems,
+  bookmarks,
+  onToggleBookmark,
+  revisions = [],
+}: {
+  problems: Problem[];
+  bookmarks?: Set<string>;
+  onToggleBookmark?: (id: string) => void;
+  revisions?: Revision[];
+}) {
   const [viewingCode, setViewingCode] = useState<string | null>(null);
+
+  const revisionCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of revisions || []) {
+      if (r.problemId) {
+        map.set(r.problemId, (map.get(r.problemId) || 0) + 1);
+      }
+    }
+    return map;
+  }, [revisions]);
+
+  function getRevisionBadge(count: number) {
+    if (!count) return null;
+    let colorClass = "";
+    if (count === 1) {
+      colorClass = "text-rose-400 bg-rose-400/10 border-rose-400/20";
+    } else if (count === 2) {
+      colorClass = "text-amber-400 bg-amber-400/10 border-amber-400/20";
+    } else if (count === 3) {
+      colorClass = "text-blue-400 bg-blue-400/10 border-blue-400/20";
+    } else {
+      colorClass = "text-emerald-400 bg-emerald-400/10 border-emerald-400/20 shadow-glow font-black animate-pulse";
+    }
+    return (
+      <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${colorClass}`}>
+        Revised {count}x
+      </span>
+    );
+  }
 
   if (problems.length === 0) {
     return (
@@ -2840,6 +3011,7 @@ function ProblemList({ problems, bookmarks, onToggleBookmark }: { problems: Prob
       <ul className="space-y-2">
         {problems.map((p) => {
           const isBookmarked = bookmarks?.has(p.id) ?? false;
+          const revCount = revisionCounts.get(p.id) || 0;
           return (
             <li
               key={p.id}
@@ -2867,6 +3039,12 @@ function ProblemList({ problems, bookmarks, onToggleBookmark }: { problems: Prob
                   <span>{p.timeTaken}m</span>
                   <span className="opacity-50">·</span>
                   <span>{new Date(p.solvedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                  {revCount > 0 && (
+                    <>
+                      <span className="opacity-50">·</span>
+                      {getRevisionBadge(revCount)}
+                    </>
+                  )}
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
@@ -2929,10 +3107,10 @@ function ProblemList({ problems, bookmarks, onToggleBookmark }: { problems: Prob
   );
 }
 
-function HallOfFame({ users, problems }: { users: MutualUser[]; problems: Problem[] }) {
+function HallOfFame({ users, problems, revisions = [] }: { users: MutualUser[]; problems: Problem[]; revisions?: Revision[] }) {
   const ranked = [...users].map(user => ({
     ...user,
-    stats: userStats(problems, user.id)
+    stats: userStats(problems, user.id, revisions)
   })).sort((a, b) => b.stats.streak - a.stats.streak);
 
   return (
@@ -3177,10 +3355,10 @@ function Analytics({ currentAccountId, users, problems }: { currentAccountId: st
 
 
 
-function Profile({ currentAccountId, profiles, users, problems, onRefresh, onLogout }: { currentAccountId: string; profiles: ProfileType[]; users: MutualUser[]; problems: Problem[]; onRefresh: () => Promise<void>; onLogout: () => void }) {
+function Profile({ currentAccountId, profiles, users, problems, revisions = [], onRefresh, onLogout }: { currentAccountId: string; profiles: ProfileType[]; users: MutualUser[]; problems: Problem[]; revisions?: Revision[]; onRefresh: () => Promise<void>; onLogout: () => void }) {
   const profile = profiles.find((item) => item.account_id === currentAccountId)!;
   const user = mapUser(profile, problems);
-  const stats = userStats(problems, currentAccountId);
+  const stats = userStats(problems, currentAccountId, revisions);
   const duoId = profile.rival_user_id ?? null;
   const duo = duoId ? users.find((item) => item.id === duoId) ?? null : null;
   const [mutualUsername, setMutualUsername] = useState(users.find((item) => item.id === profile.rival_user_id)?.username ?? "");
