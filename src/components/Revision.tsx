@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  Circle,
+  Search,
+  Bookmark,
+  ExternalLink,
   Repeat2,
+  CheckCircle2,
   RotateCcw,
+  BookOpen,
+  Clock,
 } from "lucide-react";
 
 import type { Problem, Revision } from "@/types/rivals";
@@ -16,49 +18,71 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 /* ─────────────────────────────────────────────────────────────────────────
-   Revision state (persisted in localStorage)
-───────────────────────────────────────────────────────────────────────── */
+   DS Topics Classification & Constants
+   (Aligned with My Problems view)
+ ───────────────────────────────────────────────────────────────────────── */
 
-type RevisionEntry = {
-  problemId: string;
-  revised: boolean;
-  revisedAt: string | null;
-  revisedCount: number;
+const DS_TOPICS = [
+  "Arrays", "Strings", "Hashing", "Two Pointers", "Sorting",
+  "Binary Search", "Sliding Window", "Linked List", "Stack", "Queue",
+  "Trees", "Graphs", "Heap", "DP", "Greedy",
+  "Backtracking", "Recursion", "Math", "Bit Manipulation", "Other"
+] as const;
+
+type DsTopic = typeof DS_TOPICS[number];
+
+const DS_ICON_MAP: Record<string, string> = {
+  Arrays: "🔢", Graphs: "🕸️", DP: "🧠", Trees: "🌲", Heap: "⛰️",
+  "Sliding Window": "🪟", "Binary Search": "🔍", Backtracking: "↩️",
+  Strings: "🔤", "Linked List": "🔗", Stack: "📚", Queue: "🚦",
+  Hashing: "🗝️", "Two Pointers": "✌️", Sorting: "🗂️", Greedy: "🤑",
+  Recursion: "🔄", Math: "➗", "Bit Manipulation": "0️⃣", Other: "📦",
 };
 
-type RevisionState = {
-  version: 2;
-  byProblemId: Record<string, RevisionEntry>;
-};
-
-function storageKey(accountId: string) {
-  return `revision_state_v2_${accountId}`;
-}
-
-function loadState(accountId: string): RevisionState {
-  if (typeof window === "undefined") return { version: 2, byProblemId: {} };
-  try {
-    const raw = localStorage.getItem(storageKey(accountId));
-    if (!raw) return { version: 2, byProblemId: {} };
-    const parsed = JSON.parse(raw) as RevisionState;
-    if (!parsed || parsed.version !== 2 || typeof parsed.byProblemId !== "object")
-      return { version: 2, byProblemId: {} };
-    return parsed;
-  } catch {
-    return { version: 2, byProblemId: {} };
-  }
-}
-
-function saveState(accountId: string, state: RevisionState) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(storageKey(accountId), JSON.stringify(state));
+function getTopicGroup(p: { topic: string; name: string }): DsTopic {
+  const combined = `${p.topic || ""} ${p.name || ""}`.toLowerCase();
+  if (combined.includes("array")) return "Arrays";
+  if (combined.includes("graph")) return "Graphs";
+  if (combined.includes("dp") || combined.includes("dynamic")) return "DP";
+  if (combined.includes("tree")) return "Trees";
+  if (combined.includes("heap") || combined.includes("priority queue")) return "Heap";
+  if (combined.includes("sliding") || combined.includes("window")) return "Sliding Window";
+  if (combined.includes("binary search") || combined.includes("bs")) return "Binary Search";
+  if (combined.includes("backtrack")) return "Backtracking";
+  if (combined.includes("string")) return "Strings";
+  if (combined.includes("linked") || combined.includes("list")) return "Linked List";
+  if (combined.includes("stack")) return "Stack";
+  if (combined.includes("queue")) return "Queue";
+  if (combined.includes("hash") || combined.includes("map") || combined.includes("set")) return "Hashing";
+  if (combined.includes("two pointer") || combined.includes("pointer")) return "Two Pointers";
+  if (combined.includes("sort")) return "Sorting";
+  if (combined.includes("greedy")) return "Greedy";
+  if (combined.includes("recurs") || combined.includes("hanoi") || combined.includes("josephus") || combined.includes("fibonacci")) return "Recursion";
+  if (combined.includes("math") || combined.includes("number") || combined.includes("digit") || combined.includes("arithmetic") || combined.includes("modulo")) return "Math";
+  if (combined.includes("bit") || combined.includes("xor")) return "Bit Manipulation";
+  return "Other";
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   Helpers
-───────────────────────────────────────────────────────────────────────── */
+   State & Helpers
+ ───────────────────────────────────────────────────────────────────────── */
 
-/** Returns "YYYY-MM-DD" in **local** time */
+interface RevisedItem {
+  id: string; // problemId or custom link-based id
+  problemId: string | null;
+  name: string;
+  link: string;
+  platform: string;
+  difficulty: string;
+  topic: string;
+  solvedAt: string | null;
+  revisedCount: number;
+  latestRevisedAt: string;
+  isCustom: boolean;
+  hasTodayRevision: boolean;
+  todayRevisionId: string | null;
+}
+
 function toLocalDateKey(iso: string) {
   const d = new Date(iso);
   const y = d.getFullYear();
@@ -67,53 +91,54 @@ function toLocalDateKey(iso: string) {
   return `${y}-${m}-${day}`;
 }
 
-/** "YYYY-MM-DD" → human label like "Mon, May 12" or "Today" / "Yesterday" */
-function formatDayLabel(dateKey: string) {
-  const todayKey = toLocalDateKey(new Date().toISOString());
-  const yestKey = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return toLocalDateKey(d.toISOString());
-  })();
-
-  if (dateKey === todayKey) return "Today";
-  if (dateKey === yestKey) return "Yesterday";
-
-  const [y, m, day] = dateKey.split("-").map(Number);
-  const d = new Date(y, m - 1, day);
-  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-}
-
 function difficultyColor(d: string) {
   if (d === "Easy") return "text-emerald-400 bg-emerald-400/10 border-emerald-400/20";
   if (d === "Hard") return "text-rose-400 bg-rose-400/10 border-rose-400/20";
   return "text-amber-400 bg-amber-400/10 border-amber-400/20";
 }
 
-/** Return the Monday (local) of the week containing `date` */
-function getMondayOf(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay(); // 0=Sun
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
+function formatDateTime(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  const todayKey = toLocalDateKey(now.toISOString());
+  const yest = new Date(now);
+  yest.setDate(yest.getDate() - 1);
+  const yestKey = toLocalDateKey(yest.toISOString());
+  const itemKey = toLocalDateKey(iso);
+
+  const timeStr = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  if (itemKey === todayKey) {
+    return `today at ${timeStr}`;
+  }
+  if (itemKey === yestKey) {
+    return `yesterday at ${timeStr}`;
+  }
+  return `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })} at ${timeStr}`;
 }
 
-/** "YYYY-MM-DD" key from a Date (local) */
-function dateToKey(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-}
+function useBookmarks(storageKey: string) {
+  const [bookmarks, setBookmarks] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set<string>();
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw ? new Set<string>(JSON.parse(raw)) : new Set<string>();
+    } catch { return new Set<string>(); }
+  });
 
-/** Format week label e.g. "1 Jan – 7 Jan" */
-function formatWeekLabel(start: Date, end: Date) {
-  const fmt = (d: Date) => d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
-  return `${fmt(start)} – ${fmt(end)}`;
+  const toggle = (id: string) => {
+    setBookmarks(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      localStorage.setItem(storageKey, JSON.stringify([...next]));
+      return next;
+    });
+  };
+  return { bookmarks, toggle };
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   Main component
-───────────────────────────────────────────────────────────────────────── */
+   Main Component
+ ───────────────────────────────────────────────────────────────────────── */
 
 export function RevisionView({
   currentAccountId,
@@ -126,542 +151,446 @@ export function RevisionView({
   revisions?: Revision[];
   onRefresh?: () => void;
 }) {
-  const [openDays, setOpenDays] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState("");
+  const [activeDs, setActiveDs] = useState<DsTopic | "All">("All");
+  const [revisionFilter, setRevisionFilter] = useState<"All" | "1x" | "2x" | "3x+">("All");
+  const { bookmarks, toggle: toggleBookmark } = useBookmarks(`bookmarks_${currentAccountId}`);
 
   const myProblems = useMemo(
     () => problems.filter((p) => p.accountId === currentAccountId),
     [problems, currentAccountId]
   );
 
-  const state = useMemo(() => {
-    const byProblemId: Record<string, RevisionEntry> = {};
+  // ── Construct Unified Revised Items List ────────────────────────────────
+  const revisedItems = useMemo(() => {
+    const items: RevisedItem[] = [];
     const myRevs = (revisions || []).filter((r) => r.accountId === currentAccountId);
-    for (const p of problems) {
-      if (p.accountId !== currentAccountId) continue;
-      const problemRevs = myRevs.filter((r) => r.problemId === p.id);
-      const revisedCount = problemRevs.length;
-      const todayKey = toLocalDateKey(new Date().toISOString());
-      const hasTodayRev = problemRevs.some((r) => toLocalDateKey(r.revisedAt) === todayKey);
-      const latestRev = problemRevs[0];
-      byProblemId[p.id] = {
-        problemId: p.id,
-        revised: hasTodayRev,
-        revisedAt: latestRev ? latestRev.revisedAt : null,
-        revisedCount,
-      };
-    }
-    return { version: 2 as const, byProblemId };
-  }, [revisions, problems, currentAccountId]);
+    const todayKey = toLocalDateKey(new Date().toISOString());
 
-  /* ── All calendar weeks that have problems (+ current week) ── */
-  const weeks = useMemo(() => {
-    const today = new Date();
-    const currentMonday = getMondayOf(today);
-    const dateKeys = myProblems.map((p) => toLocalDateKey(p.solvedAt));
-    const mondays = new Set<string>();
-    // Always include current week
-    mondays.add(dateToKey(currentMonday));
-    for (const dk of dateKeys) {
-      const [y, m, day] = dk.split("-").map(Number);
-      const mon = getMondayOf(new Date(y, m - 1, day));
-      mondays.add(dateToKey(mon));
-    }
-    return [...mondays]
-      .sort()
-      .reverse()
-      .map((mondayKey) => {
-        const [y, m, d] = mondayKey.split("-").map(Number);
-        const start = new Date(y, m - 1, d);
-        const end = new Date(y, m - 1, d + 6);
-        return { key: mondayKey, label: formatWeekLabel(start, end), start, end };
-      });
-  }, [myProblems]);
-
-  /* ── Selected week (default = current week) ── */
-  const currentMondayKey = useMemo(() => dateToKey(getMondayOf(new Date())), []);
-  const [selectedWeekKey, setSelectedWeekKey] = useState<string>(currentMondayKey);
-
-  /* ── Days for the selected week ── */
-  const days: { key: string; label: string }[] = useMemo(() => {
-    const [y, m, d] = selectedWeekKey.split("-").map(Number);
-    const result: { key: string; label: string }[] = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(y, m - 1, d + i);
-      const key = dateToKey(date);
-      result.push({ key, label: formatDayLabel(key) });
-    }
-    return result;
-  }, [selectedWeekKey]);
-
-
-
-  const problemsByDay = useMemo(() => {
-    const map: Record<string, Problem[]> = {};
+    // 1. Map problem records that have revisions
+    const solvedMap = new Map<string, Problem>();
     for (const p of myProblems) {
-      const dk = toLocalDateKey(p.solvedAt);
-      if (!map[dk]) map[dk] = [];
-      map[dk].push(p);
+      solvedMap.set(p.id, p);
+      const problemRevs = myRevs.filter((r) => r.problemId === p.id);
+      if (problemRevs.length > 0) {
+        const sorted = [...problemRevs].sort((a, b) => new Date(b.revisedAt).getTime() - new Date(a.revisedAt).getTime());
+        const latest = sorted[0];
+        const todayRev = sorted.find((r) => toLocalDateKey(r.revisedAt) === todayKey);
+        items.push({
+          id: p.id,
+          problemId: p.id,
+          name: p.name,
+          link: p.link || "",
+          platform: p.platform || "Other",
+          difficulty: p.difficulty || "Medium",
+          topic: p.topic || "Other",
+          solvedAt: p.solvedAt,
+          revisedCount: sorted.length,
+          latestRevisedAt: latest.revisedAt,
+          isCustom: false,
+          hasTodayRevision: !!todayRev,
+          todayRevisionId: todayRev ? todayRev.id : null,
+        });
+      }
     }
-    // Sort each day newest-first
-    for (const dk of Object.keys(map)) {
-      map[dk].sort((a, b) => new Date(b.solvedAt).getTime() - new Date(a.solvedAt).getTime());
+
+    // 2. Map custom links revisions (where problemId is null or missing from solved list)
+    const customRevs = myRevs.filter((r) => !r.problemId || !solvedMap.has(r.problemId));
+    const customGroups = new Map<string, typeof customRevs>();
+    for (const r of customRevs) {
+      const key = (r.link || r.name || "").trim().toLowerCase();
+      if (!customGroups.has(key)) {
+        customGroups.set(key, []);
+      }
+      customGroups.get(key)!.push(r);
+    }
+
+    for (const [key, revs] of customGroups.entries()) {
+      if (revs.length === 0) continue;
+      const sorted = [...revs].sort((a, b) => new Date(b.revisedAt).getTime() - new Date(a.revisedAt).getTime());
+      const latest = sorted[0];
+      const todayRev = sorted.find((r) => toLocalDateKey(r.revisedAt) === todayKey);
+      items.push({
+        id: `custom_${key}`,
+        problemId: null,
+        name: latest.name || "Custom Problem",
+        link: latest.link || "",
+        platform: latest.platform || "Other",
+        difficulty: latest.difficulty || "Medium",
+        topic: latest.topic || "Other",
+        solvedAt: null,
+        revisedCount: sorted.length,
+        latestRevisedAt: latest.revisedAt,
+        isCustom: true,
+        hasTodayRevision: !!todayRev,
+        todayRevisionId: todayRev ? todayRev.id : null,
+      });
+    }
+
+    // Sort items by latest revised date descending
+    return items.sort((a, b) => new Date(b.latestRevisedAt).getTime() - new Date(a.latestRevisedAt).getTime());
+  }, [myProblems, revisions, currentAccountId]);
+
+  // ── Stats Summary ───────────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    const totalRevisedCount = revisedItems.reduce((acc, item) => acc + item.revisedCount, 0);
+    return {
+      totalProblems: revisedItems.length,
+      totalRevisions: totalRevisedCount,
+    };
+  }, [revisedItems]);
+
+  // ── Groups & Counts by DS Topic ─────────────────────────────────────────
+  const byTopic = useMemo(() => {
+    const map: Partial<Record<DsTopic, RevisedItem[]>> = {};
+    for (const item of revisedItems) {
+      const g = getTopicGroup(item);
+      if (!map[g]) map[g] = [];
+      map[g]!.push(item);
     }
     return map;
-  }, [myProblems]);
+  }, [revisedItems]);
 
-  /* Open today's section by default on first render */
-  useEffect(() => {
-    if (days.length > 0) {
-      setOpenDays(new Set([days[0].key]));
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // ── Filter & Search Logic ───────────────────────────────────────────────
+  const applyFilters = (list: RevisedItem[]) => {
+    const q = filter.toLowerCase().trim();
+    return list
+      .filter((item) => {
+        if (revisionFilter === "All") return true;
+        if (revisionFilter === "1x") return item.revisedCount === 1;
+        if (revisionFilter === "2x") return item.revisedCount === 2;
+        if (revisionFilter === "3x+") return item.revisedCount >= 3;
+        return true;
+      })
+      .filter((item) => {
+        if (!q) return true;
+        return `${item.platform} ${item.difficulty} ${item.topic} ${item.name}`
+          .toLowerCase()
+          .includes(q);
+      });
+  };
 
-  /* ── Toggle revision for a single problem ── */
-  const toggleRevised = async (problemId: string) => {
-    const entry = state.byProblemId[problemId];
-    const isRevised = entry?.revised ?? false;
-    if (isRevised) {
-      const todayKey = toLocalDateKey(new Date().toISOString());
-      const todayRev = (revisions || []).find(
-        (r) => r.accountId === currentAccountId && r.problemId === problemId && toLocalDateKey(r.revisedAt) === todayKey
-      );
-      if (todayRev) {
-        const { error } = await supabase
-          .from("revisions" as any)
-          .delete()
-          .eq("id", todayRev.id);
-        if (error) {
-          toast.error(error.message);
-        } else {
-          toast.success("Revision undone");
-          onRefresh?.();
-        }
+  // ── Revise / Undo Actions ──────────────────────────────────────────────
+  const toggleRevised = async (item: RevisedItem) => {
+    if (item.hasTodayRevision && item.todayRevisionId) {
+      // Undo today's revision
+      const { error } = await supabase
+        .from("revisions" as any)
+        .delete()
+        .eq("id", item.todayRevisionId);
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Revision undone");
+        onRefresh?.();
       }
     } else {
+      // Create new revision record
       const { error } = await supabase
         .from("revisions" as any)
         .insert({
           account_id: currentAccountId,
-          problem_id: problemId,
+          problem_id: item.problemId,
+          name: item.name,
+          link: item.link,
+          platform: item.platform,
+          difficulty: item.difficulty,
+          topic: item.topic,
           revised_at: new Date().toISOString(),
         });
+
       if (error) {
         toast.error(error.message);
       } else {
-        toast.success("Problem revised");
+        toast.success("Revision logged as solved!");
         onRefresh?.();
       }
     }
   };
 
-  /* ── Mark all problems in a day as revised ── */
-  const markAllRevised = async (dayKey: string) => {
-    const probs = problemsByDay[dayKey] ?? [];
-    const toInsert = [];
-    for (const p of probs) {
-      const entry = state.byProblemId[p.id];
-      if (!entry?.revised) {
-        toInsert.push({
-          account_id: currentAccountId,
-          problem_id: p.id,
-          revised_at: new Date().toISOString(),
-        });
-      }
-    }
-    if (toInsert.length === 0) return;
-    const { error } = await supabase
-      .from("revisions" as any)
-      .insert(toInsert);
-    if (error) {
-      toast.error(error.message);
+  function getRevisionBadge(count: number) {
+    if (!count) return null;
+    let colorClass = "";
+    if (count === 1) {
+      colorClass = "text-rose-400 bg-rose-400/10 border-rose-400/20";
+    } else if (count === 2) {
+      colorClass = "text-amber-400 bg-amber-400/10 border-amber-400/20";
+    } else if (count === 3) {
+      colorClass = "text-blue-400 bg-blue-400/10 border-blue-400/20";
     } else {
-      toast.success(`Marked ${toInsert.length} problems as revised`);
-      onRefresh?.();
+      colorClass = "text-emerald-400 bg-emerald-400/10 border-emerald-400/20 shadow-glow font-black animate-pulse";
     }
-  };
+    return (
+      <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${colorClass}`}>
+        Revised {count}x
+      </span>
+    );
+  }
 
-  /* ── Toggle day open/closed ── */
-  const toggleDay = (key: string) => {
-    setOpenDays((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
+  // ── Filtered items to render ────────────────────────────────────────────
+  const currentTopicItems = useMemo(() => {
+    return activeDs === "All" ? revisedItems : (byTopic[activeDs] ?? []);
+  }, [revisedItems, activeDs, byTopic]);
 
-  /* ── Summary stats for the whole week ── */
-  const weekStats = useMemo(() => {
-    let totalProblems = 0;
-    let totalRevised = 0;
-    for (const { key } of days) {
-      const probs = problemsByDay[key] ?? [];
-      totalProblems += probs.length;
-      for (const p of probs) {
-        if (state.byProblemId[p.id]?.revised) totalRevised++;
-      }
-    }
-    return { totalProblems, totalRevised };
-  }, [days, problemsByDay, state]);
+  const itemsToRender = useMemo(() => {
+    return applyFilters(currentTopicItems);
+  }, [currentTopicItems, filter, revisionFilter]);
 
-  /* ── Per-platform stats (all-time) ── */
-  const platformStats = useMemo(() => {
-    const map: Record<string, { total: number; revised: number }> = {};
-    for (const p of myProblems) {
-      if (!map[p.platform]) map[p.platform] = { total: 0, revised: 0 };
-      map[p.platform].total++;
-      if (state.byProblemId[p.id]?.revised) map[p.platform].revised++;
-    }
-    return Object.entries(map)
-      .map(([platform, { total, revised }]) => ({
-        platform,
-        total,
-        revised,
-        notRevised: total - revised,
-        pct: total > 0 ? Math.round((revised / total) * 100) : 0,
-      }))
-      .sort((a, b) => b.total - a.total);
-  }, [myProblems, state]);
-
-  /* ── Empty state ── */
-  if (myProblems.length === 0) {
+  /* ── Empty State ── */
+  if (revisedItems.length === 0) {
     return (
       <section className="animate-enter space-y-4">
         <div>
           <h3 className="flex items-center gap-2 text-2xl font-black">
-            <Repeat2 className="size-6 text-primary" /> Weekly Revision
+            <Repeat2 className="size-6 text-primary" /> Revision History
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Track your revision progress day by day for the last 7 days.
+            Track and manage all problems you have revised.
           </p>
         </div>
-        <div className="glass-panel rounded-2xl p-6">
-          <p className="text-sm text-muted-foreground">
-            No solved problems yet. Add some in{" "}
-            <span className="font-semibold text-foreground">My Problems</span>, then come back to
-            start revising.
+        <div className="glass-panel rounded-2xl p-8 text-center">
+          <BookOpen className="mx-auto size-12 text-muted-foreground/30 mb-3" />
+          <h4 className="text-lg font-bold text-foreground mb-1">No Revised Problems</h4>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            You haven't revised any problems yet. Go to the{" "}
+            <span className="font-semibold text-foreground">Today's Target</span> or{" "}
+            <span className="font-semibold text-foreground">My Problems</span> tab to start tracking revision tasks.
           </p>
         </div>
       </section>
     );
   }
 
+  const borderByDiff: Record<string, string> = {
+    Easy: "border-l-green-500",
+    Medium: "border-l-yellow-500",
+    Hard: "border-l-red-500",
+  };
+
   return (
-    <section className="animate-enter space-y-6">
+    <section className="animate-enter space-y-5">
       {/* Header */}
-      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="flex items-center gap-2 text-2xl font-black">
-            <Repeat2 className="size-6 text-primary" /> Weekly Revision
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Click <span className="font-semibold text-foreground">Revise</span> to toggle revision status per problem.
+          <h3 className="text-2xl font-black">Revision History</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {stats.totalProblems} revised problems ·{" "}
+            <span className="text-primary font-bold">{stats.totalRevisions}</span> total revisions logged
           </p>
         </div>
-        <div className="rounded-xl border border-border bg-card/70 px-4 py-2 text-sm">
-          <span className="font-black text-primary">{weekStats.totalRevised}</span>
-          <span className="text-muted-foreground"> / {weekStats.totalProblems} revised this week</span>
-        </div>
+        <label className="flex items-center gap-2 rounded-lg border border-input bg-background/70 px-3 sm:w-72">
+          <Search className="size-4 text-muted-foreground" />
+          <input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="h-10 flex-1 bg-transparent text-sm outline-none"
+            placeholder="Search name, platform, topic..."
+          />
+        </label>
       </div>
 
-      {/* ── Week filter pills ── */}
-      <div className="flex flex-wrap gap-2">
-        {weeks.map((w) => {
-          const isSelected = w.key === selectedWeekKey;
-          return (
-            <button
-              key={w.key}
-              type="button"
-              onClick={() => {
-                setSelectedWeekKey(w.key);
-                setOpenDays(new Set());
-              }}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
-                isSelected
-                  ? "border-primary bg-primary/15 text-primary shadow-glow"
-                  : "border-border bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+      <div className="flex flex-col gap-6 md:flex-row md:items-start">
+        {/* Left Sidebar (DS Topics) - 30% width */}
+        <div className="flex flex-col gap-1 md:sticky md:top-24 md:w-[30%] shrink-0 max-h-[75vh] overflow-y-auto rounded-xl border border-border bg-secondary/10 p-2">
+          <button
+            type="button"
+            onClick={() => setActiveDs("All")}
+            className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-bold transition ${
+              activeDs === "All"
+                ? "bg-primary text-primary-foreground shadow-glow"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <span className="flex items-center gap-3">📋 All Topics</span>
+            <span
+              className={`rounded-full px-2.5 py-1 text-[10px] font-black ${
+                activeDs === "All" ? "bg-white/20" : "bg-secondary"
               }`}
             >
-              {w.label}
-              {w.key === currentMondayKey && (
-                <span className="ml-1.5 rounded-full bg-primary/20 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-primary">
-                  This week
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── Platform summary cards ── */}
-      {platformStats.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {platformStats.map(({ platform, total, revised, notRevised, pct }) => (
-            <div
-              key={platform}
-              className="glass-panel rounded-2xl border border-border p-5 transition hover:-translate-y-0.5"
-            >
-              {/* Platform name */}
-              <p className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                {platform}
-              </p>
-
-              {/* Big number */}
-              <p className="text-4xl font-black tabular-nums">{total}</p>
-              <p className="text-xs text-muted-foreground">problems solved</p>
-
-              {/* Revised / Not revised row */}
-              <div className="mt-4 flex items-center gap-3">
-                <div className="flex-1 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-center">
-                  <p className="text-lg font-black text-primary">{revised}</p>
-                  <p className="text-[10px] font-semibold text-muted-foreground">Revised</p>
-                </div>
-                <div className="flex-1 rounded-xl border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-center">
-                  <p className="text-lg font-black text-rose-400">{notRevised}</p>
-                  <p className="text-[10px] font-semibold text-muted-foreground">Not revised</p>
-                </div>
-              </div>
-
-              {/* Progress bar */}
-              <div className="mt-3">
-                <div className="mb-1 flex justify-between text-[10px] text-muted-foreground">
-                  <span>Revision progress</span>
-                  <span className="font-mono font-bold text-foreground">{pct}%</span>
-                </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary/40">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-700"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Week progress bar */}
-      {weekStats.totalProblems > 0 && (
-        <div className="glass-panel rounded-2xl p-4">
-          <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-semibold uppercase tracking-widest">Week Overview</span>
-            <span className="font-mono font-bold text-foreground">
-              {Math.round((weekStats.totalRevised / weekStats.totalProblems) * 100)}%
+              {revisedItems.length}
             </span>
-          </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary/40">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-primary via-accent to-primary shadow-glow transition-all duration-700"
-              style={{
-                width: `${Math.round((weekStats.totalRevised / weekStats.totalProblems) * 100)}%`,
-              }}
-            />
-          </div>
-        </div>
-      )}
+          </button>
 
-      {/* Day sections */}
-      <div className="space-y-3">
-        {days.map(({ key, label }) => {
-          const dayProblems = problemsByDay[key] ?? [];
-          const revisedCount = dayProblems.filter((p) => state.byProblemId[p.id]?.revised).length;
-          const allRevised = dayProblems.length > 0 && revisedCount === dayProblems.length;
-          const isOpen = openDays.has(key);
-          const isEmpty = dayProblems.length === 0;
+          <div className="my-2 h-px bg-border/50" />
 
-          return (
-            <div
-              key={key}
-              className={`glass-panel rounded-2xl border transition-all ${
-                allRevised ? "border-primary/30" : "border-border"
-              }`}
-            >
-              {/* Day header — always visible */}
+          {DS_TOPICS.map((topic) => {
+            const count = byTopic[topic]?.length ?? 0;
+            if (count === 0) return null; // Only show topics that have at least one revised problem
+            return (
               <button
+                key={topic}
                 type="button"
-                className="flex w-full items-center gap-3 px-5 py-4 text-left"
-                onClick={() => !isEmpty && toggleDay(key)}
+                onClick={() => setActiveDs(topic)}
+                className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-bold transition ${
+                  activeDs === topic
+                    ? "bg-primary text-primary-foreground shadow-glow"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                }`}
               >
-                {/* Chevron */}
-                <span className="shrink-0 text-muted-foreground">
-                  {isEmpty ? null : isOpen ? (
-                    <ChevronDown className="size-4" />
-                  ) : (
-                    <ChevronRight className="size-4" />
-                  )}
+                <span className="flex items-center gap-3">
+                  <span className="text-lg leading-none">{DS_ICON_MAP[topic]}</span>
+                  {topic}
                 </span>
-
-                {/* Label */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-black text-base">{label}</span>
-                    {allRevised && !isEmpty && (
-                      <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">
-                        ✓ All revised
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {isEmpty
-                      ? "No problems solved"
-                      : `${dayProblems.length} problem${dayProblems.length !== 1 ? "s" : ""} · ${revisedCount}/${dayProblems.length} revised`}
-                  </p>
-                </div>
-
-                {/* Mini progress bar */}
-                {!isEmpty && (
-                  <div className="hidden shrink-0 sm:flex flex-col items-end gap-1">
-                    <span className="text-[10px] font-bold text-muted-foreground">
-                      {dayProblems.length > 0
-                        ? Math.round((revisedCount / dayProblems.length) * 100)
-                        : 0}
-                      %
-                    </span>
-                    <div className="h-1.5 w-24 overflow-hidden rounded-full bg-secondary/40">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all duration-500"
-                        style={{
-                          width: `${dayProblems.length > 0 ? Math.round((revisedCount / dayProblems.length) * 100) : 0}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Mark all button */}
-                {!isEmpty && !allRevised && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="ml-2 shrink-0 text-xs h-8 hidden sm:flex"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      markAllRevised(key);
-                    }}
-                  >
-                    <CheckCircle2 className="size-3.5 mr-1" /> Revise all
-                  </Button>
-                )}
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-black ${
+                    activeDs === topic ? "bg-white/20" : "bg-secondary"
+                  }`}
+                >
+                  {count}
+                </span>
               </button>
+            );
+          })}
+        </div>
 
-              {/* Day problems list */}
-              {isOpen && !isEmpty && (
-                <div className="border-t border-border px-4 pb-4 pt-3 space-y-2">
-                  {/* Mobile "revise all" */}
-                  {!allRevised && (
-                    <div className="flex justify-end sm:hidden mb-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs h-8"
-                        onClick={() => markAllRevised(key)}
-                      >
-                        <CheckCircle2 className="size-3.5 mr-1" /> Revise all
-                      </Button>
+        {/* Right Content Column */}
+        <div className="flex-1 min-w-0 space-y-6">
+          {/* Top Filter Buttons Row */}
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-secondary/30 p-1 w-max">
+            {(["All", "1x", "2x", "3x+"] as const).map((key) => {
+              const label = key === "All" ? "All Revisions" : key === "1x" ? "Revised Once" : key === "2x" ? "Revised Twice" : "Revised 3x+";
+              const matchesCount = applyFilters(currentTopicItems).filter(item => {
+                if (key === "All") return true;
+                if (key === "1x") return item.revisedCount === 1;
+                if (key === "2x") return item.revisedCount === 2;
+                if (key === "3x+") return item.revisedCount >= 3;
+                return true;
+              }).length;
+
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setRevisionFilter(key)}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${
+                    revisionFilter === key
+                      ? "bg-primary text-primary-foreground shadow-glow"
+                      : "text-muted-foreground hover:bg-secondary"
+                  }`}
+                >
+                  {label}
+                  <span
+                    className={`rounded-full px-1.5 text-[10px] ${
+                      revisionFilter === key ? "bg-primary-foreground/20" : "bg-secondary"
+                    }`}
+                  >
+                    {matchesCount}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Revised Problems List */}
+          {itemsToRender.length === 0 ? (
+            <div className="glass-panel rounded-xl p-10 text-center text-sm text-muted-foreground">
+              No revised problems match your active filters.
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {itemsToRender.map((item) => {
+                const isBookmarked = bookmarks.has(item.id);
+                return (
+                  <li
+                    key={item.id}
+                    className={`group flex items-center gap-4 rounded-xl border border-border border-l-[3px] ${
+                      borderByDiff[item.difficulty] ?? ""
+                    } bg-card/50 px-4 py-3 transition hover:-translate-y-px hover:border-primary/40 hover:bg-card`}
+                  >
+                    {/* Main Info Area */}
+                    <div className="min-w-0 flex-1">
+                      {item.link ? (
+                        <a
+                          href={item.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex max-w-full items-center gap-1.5 text-sm font-semibold transition hover:text-primary"
+                        >
+                          <span className="truncate">{item.name}</span>
+                          <ExternalLink className="size-3 shrink-0 opacity-0 transition group-hover:opacity-60" />
+                        </a>
+                      ) : (
+                        <span className="block truncate text-sm font-semibold">{item.name}</span>
+                      )}
+
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                        <span className="font-bold uppercase tracking-wider">{item.platform}</span>
+                        <span className="opacity-50">·</span>
+                        <span className="font-semibold text-primary">{item.topic}</span>
+                        {item.solvedAt && (
+                          <>
+                            <span className="opacity-50">·</span>
+                            <span>
+                              Solved{" "}
+                              {new Date(item.solvedAt).toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </span>
+                          </>
+                        )}
+                        <span className="opacity-50">·</span>
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="size-3" />
+                          Last revised {formatDateTime(item.latestRevisedAt)}
+                        </span>
+                        {item.revisedCount > 0 && (
+                          <>
+                            <span className="opacity-50">·</span>
+                            {getRevisionBadge(item.revisedCount)}
+                          </>
+                        )}
+                      </div>
                     </div>
-                  )}
 
-                  {dayProblems.map((p) => {
-                    const entry = state.byProblemId[p.id];
-                    const isRevised = entry?.revised ?? false;
+                    {/* Action Controls */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => toggleBookmark(item.id)}
+                        className={`rounded-lg p-2 transition ${
+                          isBookmarked
+                            ? "text-accent bg-accent/10 hover:bg-accent/20"
+                            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        }`}
+                        title={isBookmarked ? "Remove Bookmark" : "Bookmark Problem"}
+                      >
+                        <Bookmark
+                          className={`size-4 ${isBookmarked ? "fill-current" : ""}`}
+                        />
+                      </button>
 
-                    return (
-                      <div
-                        key={p.id}
-                        className={`flex flex-col gap-3 rounded-xl border px-4 py-3 transition-all sm:flex-row sm:items-center sm:justify-between ${
-                          isRevised
-                            ? "border-primary/30 bg-primary/5"
-                            : "border-border bg-card/40 hover:bg-card/60"
+                      <button
+                        type="button"
+                        onClick={() => toggleRevised(item)}
+                        className={`group flex shrink-0 items-center gap-2 rounded-lg border px-3.5 py-1.5 text-xs font-bold transition-all ${
+                          item.hasTodayRevision
+                            ? "border-primary/40 bg-primary/10 text-primary hover:bg-rose-500/10 hover:border-rose-500/40 hover:text-rose-400"
+                            : "border-border bg-secondary/60 text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
                         }`}
                       >
-                        {/* Left: problem info */}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {/* Revised indicator */}
-                            {isRevised ? (
-                              <CheckCircle2 className="size-4 shrink-0 text-primary" />
-                            ) : (
-                              <Circle className="size-4 shrink-0 text-muted-foreground/40" />
-                            )}
-
-                            <a
-                              href={p.link}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="truncate font-bold hover:underline"
-                              title={p.name}
-                            >
-                              {p.name}
-                            </a>
-
-                            {/* Badges */}
-                            <span
-                              className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${difficultyColor(p.difficulty)}`}
-                            >
-                              {p.difficulty}
-                            </span>
-                            <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
-                              {p.platform}
-                            </span>
-                            <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
-                              {p.topic}
-                            </span>
-                          </div>
-
-                          {/* Sub-text */}
-                          <p className="mt-1 pl-6 text-xs text-muted-foreground">
-                            {isRevised && entry?.revisedAt ? (
-                              <>
-                                Revised{" "}
-                                {new Date(entry.revisedAt).toLocaleTimeString(undefined, {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                                {entry.revisedCount > 1 && (
-                                  <span className="ml-1 text-primary font-semibold">
-                                    · {entry.revisedCount}x
-                                  </span>
-                                )}
-                              </>
-                            ) : (
-                              "Not revised yet"
-                            )}
-                          </p>
-                        </div>
-
-                        {/* Right: toggle button */}
-                        <button
-                          type="button"
-                          onClick={() => toggleRevised(p.id)}
-                          className={`group flex shrink-0 items-center gap-2 rounded-lg border px-4 py-2 text-sm font-bold transition-all ${
-                            isRevised
-                              ? "border-primary/40 bg-primary/10 text-primary hover:bg-rose-500/10 hover:border-rose-500/40 hover:text-rose-400"
-                              : "border-border bg-secondary/60 text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
-                          }`}
-                        >
-                          {isRevised ? (
-                            <>
-                              <CheckCircle2 className="size-4 group-hover:hidden" />
-                              <RotateCcw className="size-4 hidden group-hover:block" />
-                              <span className="group-hover:hidden">Revised</span>
-                              <span className="hidden group-hover:inline">Undo</span>
-                            </>
-                          ) : (
-                            <>
-                              <Repeat2 className="size-4" />
-                              Revise
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                        {item.hasTodayRevision ? (
+                          <>
+                            <CheckCircle2 className="size-3.5 group-hover:hidden" />
+                            <RotateCcw className="size-3.5 hidden group-hover:block" />
+                            <span className="group-hover:hidden">Revised</span>
+                            <span className="hidden group-hover:inline">Undo</span>
+                          </>
+                        ) : (
+                          <>
+                            <Repeat2 className="size-3.5" />
+                            Revise
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       </div>
     </section>
   );

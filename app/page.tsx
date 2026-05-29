@@ -195,6 +195,8 @@ export default function Page() {
       .channel("rivals-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "friendships" }, () => refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "revisions" }, () => refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "today_revisions" }, () => refresh())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "problems" }, (payload) => {
         const newProblem = payload.new as any;
         const users = data.profiles.map(p => mapUser(p, data.problems));
@@ -596,14 +598,14 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
 
       {/* Heatmaps for all squad members */}
       <div className="grid gap-6">
-        <Heatmap currentAccountId={currentAccountId} problems={data.problems} title={`${user.emoji} ${user.name}'s Contributions`} />
+        <Heatmap currentAccountId={currentAccountId} problems={data.problems} revisions={data.revisions} title={`${user.emoji} ${user.name}'s Contributions`} />
         {friends.length === 0 ? (
           <div className="glass-panel rounded-2xl p-5 text-sm text-muted-foreground">
             Send squad requests to see your friends' contribution heatmaps here.
           </div>
         ) : (
           friends.map(f => (
-            <Heatmap key={f.id} currentAccountId={f.id} problems={data.problems} title={`${f.emoji} ${f.name}'s Contributions`} />
+            <Heatmap key={f.id} currentAccountId={f.id} problems={data.problems} revisions={data.revisions} title={`${f.emoji} ${f.name}'s Contributions`} />
           ))
         )}
       </div>
@@ -1274,25 +1276,27 @@ function TodayTarget({
     }
 
     try {
-      // Delete target problems from DB if they are no longer marked as solved or active today
-      const startOfToday = new Date();
-      startOfToday.setHours(0, 0, 0, 0);
+      // Only consider target problems from the last 2 days for deletion.
+      // This covers today + yesterday (handles midnight/timezone edge cases)
+      // WITHOUT touching older historical solved problems.
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+      twoDaysAgo.setHours(0, 0, 0, 0);
 
       const { data: dbProblems } = await (supabase as any)
         .from("problems")
         .select("id, link, solved_at")
         .eq("account_id", currentAccountId)
-        .eq("topic", "Target Problem");
+        .eq("topic", "Target Problem")
+        .gte("solved_at", twoDaysAgo.toISOString());
 
       if (dbProblems) {
         const toDelete: string[] = [];
         for (const p of dbProblems) {
-          const solvedDate = new Date((p as any).solved_at);
-          if (solvedDate >= startOfToday) {
-            const normLink = normalizeUrl((p as any).link);
-            if (!activeSolvedUrls.has(normLink)) {
-              toDelete.push((p as any).id);
-            }
+          const normLink = normalizeUrl((p as any).link);
+          // Only delete recent target problems that are no longer checked as solved
+          if (!activeSolvedUrls.has(normLink)) {
+            toDelete.push((p as any).id);
           }
         }
 
@@ -1418,6 +1422,14 @@ function TodayTarget({
       }));
 
       const allRows = [...rows, ...carryRows];
+
+      // Delete any obsolete slots in today_target_solutions that are now beyond currentLinks length
+      await (supabase as any)
+        .from("today_target_solutions")
+        .delete()
+        .eq("day", dayKey)
+        .eq("account_id", currentAccountId)
+        .gte("slot", currentLinks.length);
 
       const { error } = await (supabase as any)
         .from("today_target_solutions")
@@ -3400,7 +3412,7 @@ function Profile({ currentAccountId, profiles, users, problems, revisions = [], 
     }
   };
 
-  return <section className="glass-panel animate-enter rounded-2xl p-6"><div className="text-7xl">{user.emoji}</div><h3 className="mt-4 text-3xl font-black">{user.name}</h3><p className="text-primary">@{user.username} · {user.title}</p><div className="mt-6 grid gap-4 sm:grid-cols-4"><StatCard label="Solved" value={stats.total} Icon={Medal} /><StatCard label="This Week" value={stats.week} Icon={ListFilter} /><StatCard label="Hard Wins" value={stats.hard} Icon={Swords} /><StatCard label="Minutes" value={stats.minutes} Icon={Activity} /></div><div className="mt-6 rounded-xl border border-border bg-card/70 p-4"><h4 className="font-bold">Choose your main duo</h4><p className="mt-1 text-sm text-muted-foreground">Enter a mutual's username to compare directly.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={mutualUsername} onChange={(e) => setMutualUsername(e.target.value)} className="h-11 flex-1 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="mutual_username" /><Button type="button" variant="rival" onClick={saveMutual}>Save Mutual</Button></div></div><div className="mt-6 space-y-4">{duo ? <Heatmap currentAccountId={duo.id} problems={problems} title={`${duo.emoji} ${duo.name}'s Contributions`} /> : <div className="glass-panel rounded-2xl p-5 text-sm text-muted-foreground">Set a duo above to see their contribution heatmap.</div>}<Heatmap currentAccountId={currentAccountId} problems={problems} title={`${user.emoji} ${user.name}'s Contributions`} /></div><div className="mt-10 pt-6 border-t border-destructive/20"><h4 className="text-destructive font-bold">Danger Zone</h4><p className="mt-1 text-sm text-muted-foreground">Resetting your data will permanently delete your account and all progress.</p><Button type="button" variant="destructive" className="mt-4" onClick={handleReset} disabled={resetting}>{resetting ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Reset All Data</Button></div></section>;
+  return <section className="glass-panel animate-enter rounded-2xl p-6"><div className="text-7xl">{user.emoji}</div><h3 className="mt-4 text-3xl font-black">{user.name}</h3><p className="text-primary">@{user.username} · {user.title}</p><div className="mt-6 grid gap-4 sm:grid-cols-4"><StatCard label="Solved" value={stats.total} Icon={Medal} /><StatCard label="This Week" value={stats.week} Icon={ListFilter} /><StatCard label="Hard Wins" value={stats.hard} Icon={Swords} /><StatCard label="Minutes" value={stats.minutes} Icon={Activity} /></div><div className="mt-6 rounded-xl border border-border bg-card/70 p-4"><h4 className="font-bold">Choose your main duo</h4><p className="mt-1 text-sm text-muted-foreground">Enter a mutual's username to compare directly.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={mutualUsername} onChange={(e) => setMutualUsername(e.target.value)} className="h-11 flex-1 rounded-lg border border-input bg-background/70 px-3 outline-none focus:ring-2 focus:ring-primary/30" placeholder="mutual_username" /><Button type="button" variant="rival" onClick={saveMutual}>Save Mutual</Button></div></div><div className="mt-6 space-y-4">{duo ? <Heatmap currentAccountId={duo.id} problems={problems} revisions={revisions} title={`${duo.emoji} ${duo.name}'s Contributions`} /> : <div className="glass-panel rounded-2xl p-5 text-sm text-muted-foreground">Set a duo above to see their contribution heatmap.</div>}<Heatmap currentAccountId={currentAccountId} problems={problems} revisions={revisions} title={`${user.emoji} ${user.name}'s Contributions`} /></div><div className="mt-10 pt-6 border-t border-destructive/20"><h4 className="text-destructive font-bold">Danger Zone</h4><p className="mt-1 text-sm text-muted-foreground">Resetting your data will permanently delete your account and all progress.</p><Button type="button" variant="destructive" className="mt-4" onClick={handleReset} disabled={resetting}>{resetting ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Reset All Data</Button></div></section>;
 }
 
 function SquadRequests({ currentAccountId, users, onRefresh }: { currentAccountId: string; users: MutualUser[]; onRefresh: () => Promise<void> }) {
