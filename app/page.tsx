@@ -1277,8 +1277,8 @@ function TodayTarget({
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);
 
-      const { data: dbProblems } = await supabase
-        .from("problems" as any)
+      const { data: dbProblems } = await (supabase as any)
+        .from("problems")
         .select("id, link, solved_at")
         .eq("account_id", currentAccountId)
         .eq("topic", "Target Problem");
@@ -1286,18 +1286,18 @@ function TodayTarget({
       if (dbProblems) {
         const toDelete: string[] = [];
         for (const p of dbProblems) {
-          const solvedDate = new Date(p.solved_at);
+          const solvedDate = new Date((p as any).solved_at);
           if (solvedDate >= startOfToday) {
-            const normLink = normalizeUrl(p.link);
+            const normLink = normalizeUrl((p as any).link);
             if (!activeSolvedUrls.has(normLink)) {
-              toDelete.push(p.id);
+              toDelete.push((p as any).id);
             }
           }
         }
 
         if (toDelete.length > 0) {
-          await supabase
-            .from("problems" as any)
+          await (supabase as any)
+            .from("problems")
             .delete()
             .in("id", toDelete);
 
