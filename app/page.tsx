@@ -1257,7 +1257,73 @@ function TodayTarget({
     let newlyLoggedCount = 0;
     const insertedUrls = new Set<string>();
 
+    const activeSolvedUrls = new Set<string>();
+    for (let slot = 0; slot < currentLinks.length; slot++) {
+      const link = currentLinks[slot]?.trim();
+      if (link && cleaned[String(slot)]) {
+        activeSolvedUrls.add(normalizeUrl(link));
+      }
+    }
+    for (const co of currentCarryOverLinks) {
+      const link = co.link.trim();
+      const key = `${co.day}_${co.slot}`;
+      if (link && carryCleaned[key]) {
+        activeSolvedUrls.add(normalizeUrl(link));
+      }
+    }
+
     try {
+      // Delete target problems from DB if they are no longer marked as solved or active today
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+
+      const { data: dbProblems } = await supabase
+        .from("problems" as any)
+        .select("id, link, solved_at")
+        .eq("account_id", currentAccountId)
+        .eq("topic", "Target Problem");
+
+      if (dbProblems) {
+        const toDelete: string[] = [];
+        for (const p of dbProblems) {
+          const solvedDate = new Date(p.solved_at);
+          if (solvedDate >= startOfToday) {
+            const normLink = normalizeUrl(p.link);
+            if (!activeSolvedUrls.has(normLink)) {
+              toDelete.push(p.id);
+            }
+          }
+        }
+
+        if (toDelete.length > 0) {
+          await supabase
+            .from("problems" as any)
+            .delete()
+            .in("id", toDelete);
+          
+          // Reset their logged status in newAlreadyLogged so they can be re-logged if checked again
+          for (let slot = 0; slot < currentLinks.length; slot++) {
+            const link = currentLinks[slot]?.trim();
+            if (link && !cleaned[String(slot)]) {
+              const normLink = normalizeUrl(link);
+              if (!activeSolvedUrls.has(normLink)) {
+                newAlreadyLogged[String(slot)] = false;
+              }
+            }
+          }
+          for (const co of currentCarryOverLinks) {
+            const key = `${co.day}_${co.slot}`;
+            const link = co.link.trim();
+            if (link && !carryCleaned[key]) {
+              const normLink = normalizeUrl(link);
+              if (!activeSolvedUrls.has(normLink)) {
+                newAlreadyLogged[key] = false;
+              }
+            }
+          }
+        }
+      }
+
       const localKey = `today_target_solved_${dayKey}_${currentAccountId}`;
       localStorage.setItem(localKey, JSON.stringify(cleaned));
       
@@ -1605,7 +1671,30 @@ function TodayTarget({
                         variant="ghost" 
                         size="icon" 
                         className="h-11 w-11 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setLinks(links.filter((_, i) => i !== idx))}
+                        onClick={() => {
+                          // Re-key all slot-indexed state maps so the removed
+                          // slot's solved/logged state never bleeds into adjacent slots
+                          const rekey = <T,>(obj: Record<string, T>): Record<string, T> => {
+                            const next: Record<string, T> = {};
+                            for (let i = 0; i < links.length; i++) {
+                              if (i === idx) continue;
+                              const newSlot = i < idx ? i : i - 1;
+                              if (obj[String(i)] !== undefined) next[String(newSlot)] = obj[String(i)]!;
+                            }
+                            return next;
+                          };
+                          const newSolvedDraft = rekey(solvedDraft);
+                          const newAlreadyLogged = rekey(alreadyLogged);
+                          setLinks(links.filter((_, i) => i !== idx));
+                          setSolvedDraft(newSolvedDraft);
+                          setSolvedMeta(rekey);
+                          setAlreadyLogged(newAlreadyLogged);
+                          setFetchedTitles(rekey);
+                          setHints(rekey);
+                          // Persist immediately so a page reload doesn't resurrect removed state
+                          localStorage.setItem(`today_target_solved_${dayKey}_${currentAccountId}`, JSON.stringify(newSolvedDraft));
+                          localStorage.setItem(`today_target_logged_${dayKey}_${currentAccountId}`, JSON.stringify(newAlreadyLogged));
+                        }}
                       >
                         <Trash2 className="size-4" />
                       </Button>
