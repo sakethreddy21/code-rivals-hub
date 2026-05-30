@@ -229,7 +229,7 @@ export default function Page() {
       .on("postgres_changes", { event: "*", schema: "public", table: "accounts" }, () => refresh())
       .on("broadcast", { event: "taunt" }, (payload) => {
         // Play the sound for BOTH sender and receiver so you can hear what you sent!
-        const tracks = ['/audio1.m4a', '/audio2.m4a'];
+        const tracks = ['/audio1.m4a', '/audio2.m4a', '/audio3.m4a'];
         const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
         new Audio(randomTrack).play().catch((err) => console.error("Audio playback error:", err));
 
@@ -1574,8 +1574,8 @@ function TodayTarget({
                 <div
                   key={u.id}
                   className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${isSelf
-                      ? "border-primary/40 bg-primary/10 text-primary shadow-glow-sm"
-                      : "border-border bg-card/60 text-foreground"
+                    ? "border-primary/40 bg-primary/10 text-primary shadow-glow-sm"
+                    : "border-border bg-card/60 text-foreground"
                     }`}
                 >
                   <span className="relative flex h-2 w-2">
@@ -1669,8 +1669,8 @@ function TodayTarget({
                           title={bookmarkedLinks.has(link) ? "Remove bookmark" : "Bookmark problem"}
                           onClick={() => toggleLinkBookmark(link)}
                           className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-md border px-3 text-xs font-bold transition ${bookmarkedLinks.has(link)
-                              ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
-                              : "border-border bg-secondary/40 text-muted-foreground hover:border-accent/40 hover:text-accent"
+                            ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
+                            : "border-border bg-secondary/40 text-muted-foreground hover:border-accent/40 hover:text-accent"
                             }`}
                         >
                           {bookmarkedLinks.has(link) ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
@@ -1856,8 +1856,8 @@ function TodayTarget({
                           title={bookmarkedLinks.has(link) ? "Remove bookmark" : "Bookmark problem"}
                           onClick={() => toggleLinkBookmark(link)}
                           className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-md border px-3 text-xs font-bold transition ${bookmarkedLinks.has(link)
-                              ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
-                              : "border-border bg-secondary/40 text-muted-foreground hover:border-accent/40 hover:text-accent"
+                            ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
+                            : "border-border bg-secondary/40 text-muted-foreground hover:border-accent/40 hover:text-accent"
                             }`}
                         >
                           {bookmarkedLinks.has(link) ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
@@ -2000,7 +2000,7 @@ function TodayRevisionPanel({
 
   useEffect(() => {
     fetchTodayRevisions();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentAccountId, dayKey]);
 
   // ── Link input state ───────────────────────────────────────────────────
@@ -2828,8 +2828,8 @@ function MyProblems({ currentAccountId, problems, revisions = [] }: { currentAcc
             type="button"
             onClick={() => { setActiveDs("All"); setDsSubTab("All"); }}
             className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-bold transition ${activeDs === "All"
-                ? "bg-primary text-primary-foreground shadow-glow"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              ? "bg-primary text-primary-foreground shadow-glow"
+              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               }`}
           >
             <span className="flex items-center gap-3">📋 All Topics</span>
@@ -2844,8 +2844,8 @@ function MyProblems({ currentAccountId, problems, revisions = [] }: { currentAcc
               type="button"
               onClick={() => { setActiveDs(t); setDsSubTab("All"); }}
               className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-bold transition ${activeDs === t
-                  ? "bg-primary text-primary-foreground shadow-glow"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                ? "bg-primary text-primary-foreground shadow-glow"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 }`}
             >
               <span className="flex items-center gap-3"><span className="text-lg leading-none">{DS_ICON_MAP[t]}</span> {t}</span>
@@ -2866,8 +2866,8 @@ function MyProblems({ currentAccountId, problems, revisions = [] }: { currentAcc
                     type="button"
                     onClick={() => setDsSubTab(tab)}
                     className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${dsSubTab === tab
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-secondary"
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-secondary"
                       }`}
                   >
                     {tab === "Bookmarked" && <Bookmark className="size-3" />}
@@ -2888,8 +2888,8 @@ function MyProblems({ currentAccountId, problems, revisions = [] }: { currentAcc
                   type="button"
                   onClick={() => setDiff(f.key)}
                   className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${diff === f.key
-                      ? "bg-primary text-primary-foreground shadow-glow"
-                      : `${f.tone} hover:bg-secondary`
+                    ? "bg-primary text-primary-foreground shadow-glow"
+                    : `${f.tone} hover:bg-secondary`
                     }`}
                 >
                   {f.label}
@@ -3066,8 +3066,8 @@ function ProblemList({
                     onClick={() => onToggleBookmark(p.id)}
                     title={isBookmarked ? "Remove bookmark" : "Bookmark this problem"}
                     className={`rounded-md border p-2 transition ${isBookmarked
-                        ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
-                        : "border-border text-muted-foreground hover:border-accent/40 hover:text-accent"
+                      ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
+                      : "border-border text-muted-foreground hover:border-accent/40 hover:text-accent"
                       }`}
                   >
                     {isBookmarked ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
@@ -3268,8 +3268,8 @@ function Analytics({ currentAccountId, users, problems }: { currentAccountId: st
                 type="button"
                 onClick={() => setSelectedFriendId(f.id)}
                 className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${selectedFriendId === f.id
-                    ? "border-primary bg-primary/10 text-primary shadow-glow-sm"
-                    : "border-border bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                  ? "border-primary bg-primary/10 text-primary shadow-glow-sm"
+                  : "border-border bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
                   }`}
               >
                 <span
