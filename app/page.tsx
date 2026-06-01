@@ -228,17 +228,19 @@ export default function Page() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "accounts" }, () => refresh())
       .on("broadcast", { event: "taunt" }, (payload) => {
-        // Play the exact track that was sent (sender hears it too)
-        const tracks = [
-          '/audio1.m4a',
-          '/audio2.m4a',
-          '/audio3.m4a',
-          '/aee-main-ajau-kya-apni-par-salman-khan-angry-meme-template-for-made-with-Voicemod.mp3'
-        ];
-        const track = payload.payload.track || tracks[Math.floor(Math.random() * tracks.length)];
-        new Audio(track).play().catch((err) => console.error("Audio playback error:", err));
-
+        console.log("Taunt broadcast received:", payload);
+        
+        // Play exact track and show toast ONLY if this client is the target recipient
         if (payload.payload.to === currentAccountId) {
+          const tracks = [
+            '/audio1.m4a',
+            '/audio2.m4a',
+            '/audio3.m4a',
+            '/aee-main-ajau-kya-apni-par-salman-khan-angry-meme-template-for-made-with-Voicemod.mp3'
+          ];
+          const track = payload.payload.track || tracks[Math.floor(Math.random() * tracks.length)];
+          new Audio(track).play().catch((err) => console.error("Audio playback error:", err));
+
           toast(`🔔 ${payload.payload.nudgeName || "Wake up and code!"}`, {
             description: `${payload.payload.from} nudged you with: ${payload.payload.nudgeName || "a taunt"}`,
             duration: 6000,
@@ -537,6 +539,10 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
   const friends = users.filter(u => u.id !== currentAccountId);
   const nudgeFriend = (fId: string, track: string, nudgeName: string) => {
     const f = users.find(u => u.id === fId);
+    
+    // Play the chosen nudge sound locally for the sender immediately
+    new Audio(track).play().catch((err) => console.error("Audio playback error:", err));
+
     supabase.channel("rivals-live").send({
       type: "broadcast",
       event: "taunt",
