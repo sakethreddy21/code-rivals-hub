@@ -228,14 +228,19 @@ export default function Page() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "accounts" }, () => refresh())
       .on("broadcast", { event: "taunt" }, (payload) => {
-        // Play the sound for BOTH sender and receiver so you can hear what you sent!
-        const tracks = ['/audio1.m4a', '/audio2.m4a', '/audio3.m4a'];
-        const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
-        new Audio(randomTrack).play().catch((err) => console.error("Audio playback error:", err));
+        // Play the exact track that was sent (sender hears it too)
+        const tracks = [
+          '/audio1.m4a',
+          '/audio2.m4a',
+          '/audio3.m4a',
+          '/aee-main-ajau-kya-apni-par-salman-khan-angry-meme-template-for-made-with-Voicemod.mp3'
+        ];
+        const track = payload.payload.track || tracks[Math.floor(Math.random() * tracks.length)];
+        new Audio(track).play().catch((err) => console.error("Audio playback error:", err));
 
         if (payload.payload.to === currentAccountId) {
-          toast(`🔔 Wake up and code!`, {
-            description: `${payload.payload.from} is nudging you. They're probably cooking.`,
+          toast(`🔔 ${payload.payload.nudgeName || "Wake up and code!"}`, {
+            description: `${payload.payload.from} nudged you with: ${payload.payload.nudgeName || "a taunt"}`,
             duration: 6000,
             icon: <Flame className="text-orange-500" />
           });
@@ -530,14 +535,14 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
   const isUserOnline = Object.values(presence).flat().some((p) => (p as any).id === user.id);
 
   const friends = users.filter(u => u.id !== currentAccountId);
-  const nudgeFriend = (fId: string) => {
+  const nudgeFriend = (fId: string, track: string, nudgeName: string) => {
     const f = users.find(u => u.id === fId);
     supabase.channel("rivals-live").send({
       type: "broadcast",
       event: "taunt",
-      payload: { from: user.name, to: fId },
+      payload: { from: user.name, to: fId, track, nudgeName },
     });
-    toast.success(`Nudge sent to ${f?.name}! 🔔`, { description: "Hopefully they're paying attention." });
+    toast.success(`Sent "${nudgeName}" to ${f?.name}! 🔔`, { description: "They'll feel that one." });
   };
 
   return (
@@ -586,7 +591,7 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
                       stats={fStats}
                       platformTotal={fPlatformTotal}
                       isOnline={fIsOnline}
-                      onTaunt={() => nudgeFriend(f.id)}
+                      onTaunt={(track, nudgeName) => nudgeFriend(f.id, track, nudgeName)}
                     />
                   </div>
                 );
@@ -1975,6 +1980,8 @@ function TodayRevisionPanel({
   }, []);
 
   const [items, setItems] = useState<RevisionItem[]>([]);
+  // Maps today_revisions.id → the revisions table row id, so undo can delete by exact id
+  const [revisionIdMap, setRevisionIdMap] = useState<Record<string, string>>({});
 
   const fetchTodayRevisions = async () => {
     const { data: res, error } = await supabase
@@ -2118,7 +2125,7 @@ function TodayRevisionPanel({
     }
 
     if (newDone) {
-      const { error: insertError } = await supabase
+      const { data: inserted, error: insertError } = await supabase
         .from("revisions" as any)
         .insert({
           account_id: currentAccountId,
@@ -2129,25 +2136,47 @@ function TodayRevisionPanel({
           difficulty: item.difficulty,
           topic: item.topic,
           revised_at: new Date().toISOString(),
-        });
+        })
+        .select("id")
+        .single();
       if (insertError) {
         toast.error(insertError.message);
       } else {
-        toast.success("Revision logged as solved!");
+        // Store the exact revision row id so undo can delete it precisely
+        if (inserted) {
+          setRevisionIdMap(prev => ({ ...prev, [id]: (inserted as any).id }));
+        }
+        toast.success("Revision logged!");
       }
     } else {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const { error: deleteError } = await supabase
-        .from("revisions" as any)
-        .delete()
-        .eq("account_id", currentAccountId)
-        .eq(item.problemId ? "problem_id" : "link", item.problemId || item.link)
-        .gte("revised_at", todayStart.toISOString());
-      if (deleteError) {
-        toast.error(deleteError.message);
+      const revId = revisionIdMap[id];
+      if (revId) {
+        // Delete by exact revision row id — no ambiguity
+        const { error: deleteError } = await supabase
+          .from("revisions" as any)
+          .delete()
+          .eq("id", revId);
+        if (deleteError) {
+          toast.error(deleteError.message);
+        } else {
+          setRevisionIdMap(prev => { const next = { ...prev }; delete next[id]; return next; });
+          toast.success("Revision undone");
+        }
       } else {
-        toast.success("Revision undone");
+        // Fallback: delete by account + problem_id/link within today
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const { error: deleteError } = await supabase
+          .from("revisions" as any)
+          .delete()
+          .eq("account_id", currentAccountId)
+          .eq(item.problemId ? "problem_id" : "link", item.problemId || item.link)
+          .gte("revised_at", todayStart.toISOString());
+        if (deleteError) {
+          toast.error(deleteError.message);
+        } else {
+          toast.success("Revision undone");
+        }
       }
     }
 
@@ -2507,10 +2536,17 @@ function Heatmap({
       const existing = countsByDay.get(key) || { solved: 0, revised: 0 };
       countsByDay.set(key, { ...existing, solved: existing.solved + 1 });
     }
+    // Deduplicate revisions by unique problem per day (problem_id or link)
+    // so toggling done multiple times doesn't inflate the count
+    const seenRevisions = new Map<string, Set<string>>(); // date -> Set of unique keys
     for (const r of mineRevisions) {
-      const key = localDateKey(new Date(r.revisedAt));
-      const existing = countsByDay.get(key) || { solved: 0, revised: 0 };
-      countsByDay.set(key, { ...existing, revised: existing.revised + 1 });
+      const dateKey = localDateKey(new Date(r.revisedAt));
+      const uniqueKey = r.problemId || r.link || r.id;
+      if (!seenRevisions.has(dateKey)) seenRevisions.set(dateKey, new Set());
+      if (seenRevisions.get(dateKey)!.has(uniqueKey)) continue; // skip duplicate
+      seenRevisions.get(dateKey)!.add(uniqueKey);
+      const existing = countsByDay.get(dateKey) || { solved: 0, revised: 0 };
+      countsByDay.set(dateKey, { ...existing, revised: existing.revised + 1 });
     }
 
     const today = new Date();

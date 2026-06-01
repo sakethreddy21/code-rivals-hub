@@ -78,6 +78,7 @@ interface RevisedItem {
   solvedAt: string | null;
   revisedCount: number;
   latestRevisedAt: string;
+  latestRevisionId: string | null; // exact DB row id of the most recent revision
   isCustom: boolean;
   hasTodayRevision: boolean;
   todayRevisionId: string | null;
@@ -187,6 +188,7 @@ export function RevisionView({
           solvedAt: p.solvedAt,
           revisedCount: sorted.length,
           latestRevisedAt: latest.revisedAt,
+          latestRevisionId: latest.id,
           isCustom: false,
           hasTodayRevision: !!todayRev,
           todayRevisionId: todayRev ? todayRev.id : null,
@@ -221,6 +223,7 @@ export function RevisionView({
         solvedAt: null,
         revisedCount: sorted.length,
         latestRevisedAt: latest.revisedAt,
+        latestRevisionId: latest.id,
         isCustom: true,
         hasTodayRevision: !!todayRev,
         todayRevisionId: todayRev ? todayRev.id : null,
@@ -271,22 +274,24 @@ export function RevisionView({
   };
 
   // ── Revise / Undo Actions ──────────────────────────────────────────────
+  const [busyId, setBusyId] = useState<string | null>(null);
+
   const toggleRevised = async (item: RevisedItem) => {
+    setBusyId(item.id);
     if (item.hasTodayRevision && item.todayRevisionId) {
-      // Undo today's revision
+      // Undo today's revision by exact row id
       const { error } = await supabase
         .from("revisions" as any)
         .delete()
         .eq("id", item.todayRevisionId);
-
       if (error) {
         toast.error(error.message);
       } else {
-        toast.success("Revision undone");
+        toast.success("Today's revision undone");
         onRefresh?.();
       }
     } else {
-      // Create new revision record
+      // Log a new revision for today
       const { error } = await supabase
         .from("revisions" as any)
         .insert({
@@ -299,14 +304,31 @@ export function RevisionView({
           topic: item.topic,
           revised_at: new Date().toISOString(),
         });
-
       if (error) {
         toast.error(error.message);
       } else {
-        toast.success("Revision logged as solved!");
+        toast.success("Revision logged!");
         onRefresh?.();
       }
     }
+    setBusyId(null);
+  };
+
+  // Remove the most recent revision entry (any day) by its exact DB row id
+  const removeLastRevision = async (item: RevisedItem) => {
+    if (!item.latestRevisionId) return;
+    setBusyId(`rm_${item.id}`);
+    const { error } = await supabase
+      .from("revisions" as any)
+      .delete()
+      .eq("id", item.latestRevisionId);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(item.revisedCount === 1 ? "Problem removed from revision history" : "Latest revision removed");
+      onRefresh?.();
+    }
+    setBusyId(null);
   };
 
   function getRevisionBadge(count: number) {
@@ -561,21 +583,25 @@ export function RevisionView({
                         />
                       </button>
 
+                      {/* Revise / Undo-today button */}
                       <button
                         type="button"
                         onClick={() => toggleRevised(item)}
-                        className={`group flex shrink-0 items-center gap-2 rounded-lg border px-3.5 py-1.5 text-xs font-bold transition-all ${
+                        disabled={busyId === item.id}
+                        className={`group flex shrink-0 items-center gap-2 rounded-lg border px-3.5 py-1.5 text-xs font-bold transition-all disabled:opacity-50 ${
                           item.hasTodayRevision
                             ? "border-primary/40 bg-primary/10 text-primary hover:bg-rose-500/10 hover:border-rose-500/40 hover:text-rose-400"
                             : "border-border bg-secondary/60 text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
                         }`}
                       >
-                        {item.hasTodayRevision ? (
+                        {busyId === item.id ? (
+                          <RotateCcw className="size-3.5 animate-spin" />
+                        ) : item.hasTodayRevision ? (
                           <>
                             <CheckCircle2 className="size-3.5 group-hover:hidden" />
                             <RotateCcw className="size-3.5 hidden group-hover:block" />
-                            <span className="group-hover:hidden">Revised</span>
-                            <span className="hidden group-hover:inline">Undo</span>
+                            <span className="group-hover:hidden">Revised ✓</span>
+                            <span className="hidden group-hover:inline">Undo Today</span>
                           </>
                         ) : (
                           <>
@@ -583,6 +609,22 @@ export function RevisionView({
                             Revise
                           </>
                         )}
+                      </button>
+
+                      {/* Remove last revision entry (always visible) */}
+                      <button
+                        type="button"
+                        onClick={() => removeLastRevision(item)}
+                        disabled={busyId === `rm_${item.id}`}
+                        title={item.revisedCount === 1 ? "Remove from revision history" : "Remove latest revision entry"}
+                        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-bold text-muted-foreground transition hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-400 disabled:opacity-50"
+                      >
+                        {busyId === `rm_${item.id}` ? (
+                          <RotateCcw className="size-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="size-3.5" />
+                        )}
+                        <span>{item.revisedCount === 1 ? "Remove" : "−1"}</span>
                       </button>
                     </div>
                   </li>
