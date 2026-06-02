@@ -56,6 +56,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AppData,
@@ -2536,11 +2537,19 @@ function Heatmap({
       return `${y}-${m}-${d}`;
     };
 
-    const countsByDay = new Map<string, { solved: number; revised: number }>();
+    const countsByDay = new Map<
+      string,
+      { solved: number; revised: number; solvedProblems: string[]; revisedProblems: string[] }
+    >();
+
     for (const p of mineProblems) {
       const key = localDateKey(new Date(p.solvedAt));
-      const existing = countsByDay.get(key) || { solved: 0, revised: 0 };
-      countsByDay.set(key, { ...existing, solved: existing.solved + 1 });
+      const existing = countsByDay.get(key) || { solved: 0, revised: 0, solvedProblems: [], revisedProblems: [] };
+      countsByDay.set(key, {
+        ...existing,
+        solved: existing.solved + 1,
+        solvedProblems: [...existing.solvedProblems, p.name],
+      });
     }
     // Deduplicate revisions by unique problem per day (problem_id or link)
     // so toggling done multiple times doesn't inflate the count
@@ -2551,8 +2560,13 @@ function Heatmap({
       if (!seenRevisions.has(dateKey)) seenRevisions.set(dateKey, new Set());
       if (seenRevisions.get(dateKey)!.has(uniqueKey)) continue; // skip duplicate
       seenRevisions.get(dateKey)!.add(uniqueKey);
-      const existing = countsByDay.get(dateKey) || { solved: 0, revised: 0 };
-      countsByDay.set(dateKey, { ...existing, revised: existing.revised + 1 });
+
+      const existing = countsByDay.get(dateKey) || { solved: 0, revised: 0, solvedProblems: [], revisedProblems: [] };
+      countsByDay.set(dateKey, {
+        ...existing,
+        revised: existing.revised + 1,
+        revisedProblems: [...existing.revisedProblems, r.name || "Custom Problem"],
+      });
     }
 
     const today = new Date();
@@ -2579,13 +2593,29 @@ function Heatmap({
 
     let computedMax = 0;
     const all = dates.map((d) => {
-      const counts = countsByDay.get(localDateKey(d)) || { solved: 0, revised: 0 };
+      const counts = countsByDay.get(localDateKey(d)) || { solved: 0, revised: 0, solvedProblems: [], revisedProblems: [] };
       const total = counts.solved + counts.revised;
       if (total > computedMax) computedMax = total;
-      return { date: d, solved: counts.solved, revised: counts.revised, total };
+      return {
+        date: d,
+        solved: counts.solved,
+        revised: counts.revised,
+        total,
+        solvedProblems: counts.solvedProblems,
+        revisedProblems: counts.revisedProblems,
+      };
     });
 
-    const computedWeeks: { days: { date: Date; solved: number; revised: number; total: number }[] }[] = [];
+    const computedWeeks: {
+      days: {
+        date: Date;
+        solved: number;
+        revised: number;
+        total: number;
+        solvedProblems: string[];
+        revisedProblems: string[];
+      }[];
+    }[] = [];
     for (let i = 0; i < all.length; i += 7) {
       computedWeeks.push({ days: all.slice(i, i + 7) });
     }
@@ -2609,13 +2639,6 @@ function Heatmap({
     return { weeks: computedWeeks, monthLabels: labels, maxCount: computedMax };
   }, [mineProblems, mineRevisions]);
 
-  const [hovered, setHovered] = useState<{
-    date: Date;
-    solved: number;
-    revised: number;
-    anchor: { x: number; y: number };
-  } | null>(null);
-
   const dayFormatter = useMemo(
     () => new Intl.DateTimeFormat(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" }),
     [],
@@ -2628,6 +2651,18 @@ function Heatmap({
     return Math.max(1, Math.min(4, scaled));
   };
 
+  const getTooltipText = (solved: number, revised: number) => {
+    if (solved === 0 && revised === 0) return "No contributions";
+    const parts = [];
+    if (solved > 0) {
+      parts.push(`${solved} solved`);
+    }
+    if (revised > 0) {
+      parts.push(`${revised} ${revised === 1 ? "revision" : "revisions"}`);
+    }
+    return parts.join(", ");
+  };
+
   const weekdayLabels = [
     { row: 1, label: "Mon" },
     { row: 3, label: "Wed" },
@@ -2635,110 +2670,98 @@ function Heatmap({
   ];
 
   return (
-    <div className="glass-panel rounded-2xl p-5">
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <h3 className="text-xl font-bold">{title}</h3>
-        <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
-          <span>Less</span>
-          <span className="gh-heat-square gh-heat-0" aria-hidden />
-          <span className="gh-heat-square gh-heat-1" aria-hidden />
-          <span className="gh-heat-square gh-heat-2" aria-hidden />
-          <span className="gh-heat-square gh-heat-3" aria-hidden />
-          <span className="gh-heat-square gh-heat-4" aria-hidden />
-          <span>More</span>
-        </div>
-      </div>
-
-      <div className="relative overflow-x-auto">
-        <div className="inline-block">
-          <div className="gh-heatmap-months">
-            {monthLabels.map((m) => (
-              <div key={`${m.weekIndex}-${m.label}`} className="gh-heatmap-month" style={{ gridColumnStart: m.weekIndex + 2 }}>
-                {m.label}
-              </div>
-            ))}
+    <TooltipProvider delayDuration={50}>
+      <div className="glass-panel rounded-2xl p-5">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h3 className="text-xl font-bold">{title}</h3>
+          <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+            <span>Less</span>
+            <span className="gh-heat-square gh-heat-0" aria-hidden />
+            <span className="gh-heat-square gh-heat-1" aria-hidden />
+            <span className="gh-heat-square gh-heat-2" aria-hidden />
+            <span className="gh-heat-square gh-heat-3" aria-hidden />
+            <span className="gh-heat-square gh-heat-4" aria-hidden />
+            <span>More</span>
           </div>
+        </div>
 
-          <div className="gh-heatmap-body">
-            <div className="gh-heatmap-ylabels">
-              {weekdayLabels.map((w) => (
-                <div key={w.label} className="gh-heatmap-ylabel" style={{ gridRowStart: w.row + 1 }}>
-                  {w.label}
+        <div className="relative overflow-x-auto">
+          <div className="inline-block">
+            <div className="gh-heatmap-months">
+              {monthLabels.map((m) => (
+                <div key={`${m.weekIndex}-${m.label}`} className="gh-heatmap-month" style={{ gridColumnStart: m.weekIndex + 2 }}>
+                  {m.label}
                 </div>
               ))}
             </div>
 
-            <div className="gh-heatmap-weeks" role="grid" aria-label="Contribution calendar">
-              {weeks.map((week, weekIndex) => (
-                <div key={weekIndex} className="gh-heatmap-week" role="row">
-                  {week.days.map((d, dayIndex) => {
-                    const level = levelFor(d.total);
-                    const label = `${d.solved} solved, ${d.revised} revised on ${dayFormatter.format(d.date)}`;
-                    return (
-                      <button
-                        key={dayIndex}
-                        type="button"
-                        className={`gh-heat-square gh-heat-${level}`}
-                        aria-label={label}
-                        onMouseEnter={(e) => {
-                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                          const parent = (e.currentTarget.offsetParent as HTMLElement | null)?.getBoundingClientRect();
-                          setHovered({
-                            date: d.date,
-                            solved: d.solved,
-                            revised: d.revised,
-                            anchor: {
-                              x: rect.left - (parent?.left ?? 0) + rect.width / 2,
-                              y: rect.top - (parent?.top ?? 0),
-                            },
-                          });
-                        }}
-                        onMouseLeave={() => setHovered(null)}
-                        onFocus={(e) => {
-                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                          const parent = (e.currentTarget.offsetParent as HTMLElement | null)?.getBoundingClientRect();
-                          setHovered({
-                            date: d.date,
-                            solved: d.solved,
-                            revised: d.revised,
-                            anchor: {
-                              x: rect.left - (parent?.left ?? 0) + rect.width / 2,
-                              y: rect.top - (parent?.top ?? 0),
-                            },
-                          });
-                        }}
-                        onBlur={() => setHovered(null)}
-                      />
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
+            <div className="gh-heatmap-body">
+              <div className="gh-heatmap-ylabels">
+                {weekdayLabels.map((w) => (
+                  <div key={w.label} className="gh-heatmap-ylabel" style={{ gridRowStart: w.row + 1 }}>
+                    {w.label}
+                  </div>
+                ))}
+              </div>
+
+              <div className="gh-heatmap-weeks" role="grid" aria-label="Contribution calendar">
+                {weeks.map((week, weekIndex) => (
+                  <div key={weekIndex} className="gh-heatmap-week" role="row">
+                    {week.days.map((d, dayIndex) => {
+                      const level = levelFor(d.total);
+                      return (
+                        <Tooltip key={dayIndex}>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className={`gh-heat-square gh-heat-${level} transition-all duration-150 hover:scale-110`}
+                              aria-label={`${d.solved} solved, ${d.revised} revised on ${dayFormatter.format(d.date)}`}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="top"
+                            align="center"
+                            className="z-50 max-w-[280px] min-w-[180px] rounded-lg border border-border bg-popover px-3 py-2 text-left text-popover-foreground shadow-xl animate-in fade-in-50 duration-150"
+                          >
+                            <div className="text-xs text-muted-foreground mb-1 font-semibold">
+                              {dayFormatter.format(d.date)}
+                            </div>
+                            <div className="text-sm font-bold border-b border-border/50 pb-1 mb-1">
+                              {getTooltipText(d.solved, d.revised)}
+                            </div>
+                            {d.solvedProblems.length > 0 && (
+                              <div className="mt-1.5 text-[11px]">
+                                <span className="text-primary font-bold">Solved:</span>
+                                <ul className="list-disc pl-3.5 mt-0.5 space-y-0.5 text-muted-foreground">
+                                  {d.solvedProblems.map((name, i) => (
+                                    <li key={i} className="truncate max-w-[240px]" title={name}>{name}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {d.revisedProblems.length > 0 && (
+                              <div className="mt-1.5 text-[11px]">
+                                <span className="text-accent font-bold">Revised:</span>
+                                <ul className="list-disc pl-3.5 mt-0.5 space-y-0.5 text-muted-foreground">
+                                  {d.revisedProblems.map((name, i) => (
+                                    <li key={i} className="truncate max-w-[240px]" title={name}>{name}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
           </div>
         </div>
-
-        {hovered && (
-          <div
-            className="gh-heatmap-tooltip"
-            style={{
-              left: hovered.anchor.x,
-              top: hovered.anchor.y,
-              transform: "translate(-50%, calc(-100% - 10px))",
-            }}
-            role="status"
-          >
-            <div className="gh-heatmap-tooltip-inner">
-              <div className="text-sm font-semibold">
-                {hovered.solved} solved, {hovered.revised} revision
-              </div>
-              <div className="text-xs opacity-80">{dayFormatter.format(hovered.date)}</div>
-            </div>
-            <div className="gh-heatmap-tooltip-caret" aria-hidden />
-          </div>
-        )}
       </div>
     </div>
-  );
+  </TooltipProvider>
+);
 }
 
 const DS_TOPICS = ["Arrays", "Strings", "Hashing", "Two Pointers", "Sorting", "Binary Search", "Sliding Window", "Linked List", "Stack", "Queue", "Trees", "Graphs", "Heap", "DP", "Greedy", "Backtracking", "Recursion", "Math", "Bit Manipulation", "Other"] as const;
