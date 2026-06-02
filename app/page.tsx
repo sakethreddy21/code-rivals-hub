@@ -488,7 +488,69 @@ function CompetitionApp({ currentAccountId, data, onRefresh, onSync, onLogout }:
     toast.success("Logged out");
   };
 
-  return <div className="app-shell-bg min-h-screen text-foreground lg:flex"><aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0"><div className="flex items-center justify-between lg:block"><div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow"><Swords /></div><div><p className="font-black">AlgoBuilding</p><p className="text-xs text-muted-foreground">The Arena</p></div></div><Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}><LogOut /></Button></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => setView(item.id)} className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}><Icon className="size-4" /> {item.label}</button>; })}</nav><div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block"><p className="text-sm text-muted-foreground">Logged in as</p><p className="mt-1 text-lg font-bold">{user.emoji} {user.name}</p><p className="text-xs text-primary">{user.title}</p><Button className="mt-4 w-full" variant="secondary" onClick={logout}><LogOut /> Logout</Button></div></aside><main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Header user={user} squadUsers={squadUsers} />{view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}{view === "today-target" && <TodayTargetView currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}{view === "focus" && <FocusTodo currentAccountId={currentAccountId} />}{view === "focus-analytics" && <FocusAnalytics currentAccountId={currentAccountId} />}{view === "revision" && <RevisionView currentAccountId={currentAccountId} problems={squadData.problems} revisions={squadData.revisions} onRefresh={onRefresh} />}{view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={squadData.problems} revisions={squadData.revisions} />}{view === "analytics" && <Analytics currentAccountId={currentAccountId} users={squadUsers} problems={squadData.problems} />}{view === "platform-stats" && <PlatformStats currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} />}{view === "hall-of-fame" && <HallOfFame users={squadUsers} problems={squadData.problems} revisions={squadData.revisions} />}{view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={allUsers} onRefresh={onRefresh} />}{view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={squadUsers} problems={squadData.problems} revisions={squadData.revisions} onRefresh={onRefresh} onLogout={onLogout} />}</main></div>;
+  return (
+    <div className="app-shell-bg min-h-screen text-foreground lg:flex">
+      <aside className="glass-panel sticky top-0 z-20 border-x-0 border-t-0 px-4 py-4 lg:h-screen lg:w-72 lg:border-y-0 lg:border-l-0 lg:flex lg:flex-col lg:overflow-y-auto">
+        <div className="flex items-center justify-between lg:block shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground shadow-glow">
+              <Swords />
+            </div>
+            <div>
+              <p className="font-black">AlgoBuilding</p>
+              <p className="text-xs text-muted-foreground">The Arena</p>
+            </div>
+          </div>
+          <Button className="lg:hidden" variant="ghost" size="icon" onClick={logout}>
+            <LogOut />
+          </Button>
+        </div>
+
+        <nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0 shrink-0">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setView(item.id)}
+                className={`flex min-w-max items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-secondary ${
+                  view === item.id ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground"
+                }`}
+              >
+                <Icon className="size-4" /> {item.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="mt-6 hidden rounded-xl border border-border bg-card/80 p-4 lg:block lg:mt-auto shrink-0">
+          <p className="text-sm text-muted-foreground">Logged in as</p>
+          <p className="mt-1 text-lg font-bold">
+            {user.emoji} {user.name}
+          </p>
+          <p className="text-xs text-primary">{user.title}</p>
+          <Button className="mt-4 w-full" variant="secondary" onClick={logout}>
+            <LogOut /> Logout
+          </Button>
+        </div>
+      </aside>
+
+      <main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">
+        <Header user={user} squadUsers={squadUsers} />
+        {view === "dashboard" && <Dashboard currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}
+        {view === "today-target" && <TodayTargetView currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}
+        {view === "focus" && <FocusTodo currentAccountId={currentAccountId} />}
+        {view === "focus-analytics" && <FocusAnalytics currentAccountId={currentAccountId} />}
+        {view === "revision" && <RevisionView currentAccountId={currentAccountId} problems={squadData.problems} revisions={squadData.revisions} onRefresh={onRefresh} />}
+        {view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={squadData.problems} revisions={squadData.revisions} />}
+        {view === "analytics" && <Analytics currentAccountId={currentAccountId} users={squadUsers} problems={squadData.problems} />}
+        {view === "platform-stats" && <PlatformStats currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} />}
+        {view === "hall-of-fame" && <HallOfFame users={squadUsers} problems={squadData.problems} revisions={squadData.revisions} />}
+        {view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={allUsers} onRefresh={onRefresh} />}
+        {view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={squadUsers} problems={squadData.problems} revisions={squadData.revisions} onRefresh={onRefresh} onLogout={onLogout} />}
+      </main>
+    </div>
+  );
 }
 
 function Header({ user, squadUsers }: { user: MutualUser; squadUsers: MutualUser[] }) {
