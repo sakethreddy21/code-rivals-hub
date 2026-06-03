@@ -36,6 +36,7 @@ import {
   Trophy,
   User,
   UserPlus,
+  Users2,
   X,
   Zap,
 } from "lucide-react";
@@ -82,6 +83,7 @@ import { StatCard, MutualCard, Select } from "@/components/atoms";
 import { FocusTodo, FocusAnalytics } from "@/components/Focus";
 import { RevisionView } from "@/components/Revision";
 import { PlatformStats } from "@/components/PlatformStats";
+import { StudySession } from "@/components/StudySession";
 
 type ViewId = (typeof navItems)[number]["id"];
 
@@ -90,6 +92,7 @@ const navItems = [
   { id: "today-target", label: "Today Target", icon: Target },
   { id: "focus", label: "FocusTodo", icon: Timer },
   { id: "focus-analytics", label: "Focus Analytics", icon: BarChart3 },
+  { id: "study-session", label: "Sync Study", icon: Users2 },
   { id: "revision", label: "Revision", icon: Repeat2 },
   { id: "problems", label: "My Problems", icon: BookOpenCheck },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
@@ -230,7 +233,7 @@ export default function Page() {
       .on("postgres_changes", { event: "*", schema: "public", table: "accounts" }, () => refresh())
       .on("broadcast", { event: "taunt" }, (payload) => {
         console.log("Taunt broadcast received:", payload);
-        
+
         // Play exact track and show toast ONLY if this client is the target recipient
         if (payload.payload.to === currentAccountId) {
           const tracks = [
@@ -541,6 +544,13 @@ function CompetitionApp({ currentAccountId, data, onRefresh, onSync, onLogout }:
         {view === "today-target" && <TodayTargetView currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} onSync={onSync} />}
         {view === "focus" && <FocusTodo currentAccountId={currentAccountId} />}
         {view === "focus-analytics" && <FocusAnalytics currentAccountId={currentAccountId} />}
+        {view === "study-session" && (
+          <StudySession
+            currentAccountId={currentAccountId}
+            currentUser={user}
+            friends={squadUsers.filter((u) => u.id !== currentAccountId)}
+          />
+        )}
         {view === "revision" && <RevisionView currentAccountId={currentAccountId} problems={squadData.problems} revisions={squadData.revisions} onRefresh={onRefresh} />}
         {view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={squadData.problems} revisions={squadData.revisions} />}
         {view === "analytics" && <Analytics currentAccountId={currentAccountId} users={squadUsers} problems={squadData.problems} />}
@@ -602,7 +612,7 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
   const friends = users.filter(u => u.id !== currentAccountId);
   const nudgeFriend = (fId: string, track: string, nudgeName: string) => {
     const f = users.find(u => u.id === fId);
-    
+
     // Play the chosen nudge sound locally for the sender immediately
     new Audio(track).play().catch((err) => console.error("Audio playback error:", err));
 
@@ -2818,12 +2828,12 @@ function Heatmap({
                   </div>
                 ))}
               </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </TooltipProvider>
-);
+    </TooltipProvider>
+  );
 }
 
 const DS_TOPICS = ["Arrays", "Strings", "Hashing", "Two Pointers", "Sorting", "Binary Search", "Sliding Window", "Linked List", "Stack", "Queue", "Trees", "Graphs", "Heap", "DP", "Greedy", "Backtracking", "Recursion", "Math", "Bit Manipulation", "Other"] as const;
