@@ -1360,25 +1360,24 @@ function TodayTarget({
     }
 
     try {
-      // Only consider target problems from the last 2 days for deletion.
-      // This covers today + yesterday (handles midnight/timezone edge cases)
-      // WITHOUT touching older historical solved problems.
-      const twoDaysAgo = new Date();
-      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-      twoDaysAgo.setHours(0, 0, 0, 0);
+      // Only delete today's target problems that the user has un-checked.
+      // We intentionally scope this to today only (solved_at >= today midnight)
+      // so that yesterday's (or older) solved contributions are NEVER wiped.
+      const todayMidnight = new Date();
+      todayMidnight.setHours(0, 0, 0, 0);
 
       const { data: dbProblems } = await (supabase as any)
         .from("problems")
         .select("id, link, solved_at")
         .eq("account_id", currentAccountId)
         .eq("topic", "Target Problem")
-        .gte("solved_at", twoDaysAgo.toISOString());
+        .gte("solved_at", todayMidnight.toISOString());
 
       if (dbProblems) {
         const toDelete: string[] = [];
         for (const p of dbProblems) {
           const normLink = normalizeUrl((p as any).link);
-          // Only delete recent target problems that are no longer checked as solved
+          // Only delete today's target problems that are no longer checked as solved
           if (!activeSolvedUrls.has(normLink)) {
             toDelete.push((p as any).id);
           }
