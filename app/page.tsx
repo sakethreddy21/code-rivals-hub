@@ -84,6 +84,7 @@ import { FocusTodo, FocusAnalytics } from "@/components/Focus";
 import { RevisionView } from "@/components/Revision";
 import { PlatformStats } from "@/components/PlatformStats";
 import { StudySession } from "@/components/StudySession";
+import { loadFocusSessions, fmtDuration, syncFocusSessionsFromCloud } from "@/lib/focus";
 
 type ViewId = (typeof navItems)[number]["id"];
 
@@ -693,6 +694,21 @@ function Dashboard({ currentAccountId, data, users, onRefresh, onSync }: { curre
           ))
         )}
       </div>
+
+      {/* Time-spent heatmaps for all squad members */}
+      <div className="grid gap-6">
+        <TimeHeatmap currentAccountId={currentAccountId} userName={`${user.emoji} ${user.name}`} />
+        {friends.length === 0 ? (
+          <div className="glass-panel rounded-2xl p-5 text-sm text-muted-foreground">
+            Send squad requests to see your friends' focus time heatmaps here.
+          </div>
+        ) : (
+          friends.map(f => (
+            <TimeHeatmap key={f.id} currentAccountId={f.id} userName={`${f.emoji} ${f.name}`} />
+          ))
+        )}
+      </div>
+
       <SquadActivity data={data} users={users} />
     </section>
   );
@@ -2834,6 +2850,304 @@ function Heatmap({
     </TooltipProvider>
   );
 }
+
+// ─── Time Heatmap ────────────────────────────────────────────────────────────
+
+const HOUR_FILTERS = [4, 6, 8, 10] as const;
+type HourFilter = (typeof HOUR_FILTERS)[number];
+
+function TimeHeatmap({ currentAccountId, userName }: { currentAccountId: string; userName: string }) {
+  const [tick, setTick] = useState(0);
+  const [activeFilter, setActiveFilter] = useState<HourFilter | null>(null);
+
+  // Sync from cloud once on mount, then re-render
+  useEffect(() => {
+    if (!currentAccountId) return;
+    let cancelled = false;
+    syncFocusSessionsFromCloud(currentAccountId).then(() => {
+      if (!cancelled) setTick(t => t + 1);
+    });
+    return () => { cancelled = true; };
+  }, [currentAccountId]);
+
+  const { weeks, monthLabels, maxSec, totalFocusSec, streakDays } = useMemo(() => {
+    const sessions = loadFocusSessions(currentAccountId);
+    const focusSessions = sessions.filter(s => s.type === "focus");
+
+    const localDateKey = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${dd}`;
+    };
+
+    // Build per-day map: { totalSec, tasks: Set<string> }
+    type DayData = { totalSec: number; tasks: Map<string, number> };
+    const dayMap = new Map<string, DayData>();
+    for (const s of focusSessions) {
+      const key = localDateKey(new Date(s.startedAt));
+      const existing = dayMap.get(key) ?? { totalSec: 0, tasks: new Map() };
+      existing.totalSec += s.durationSec;
+      if (s.task?.trim()) {
+        const t = s.task.trim();
+        existing.tasks.set(t, (existing.tasks.get(t) ?? 0) + s.durationSec);
+      }
+      dayMap.set(key, existing);
+    }
+
+    // Build 53-week grid (same logic as contributions heatmap)
+    const today = new Date();
+    const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const start = new Date(end);
+    start.setDate(start.getDate() - 364);
+    start.setHours(0, 0, 0, 0);
+    while (start.getDay() !== 0) start.setDate(start.getDate() - 1);
+
+    const dates: Date[] = [];
+    const cursor = new Date(start);
+    while (cursor <= end) { dates.push(new Date(cursor)); cursor.setDate(cursor.getDate() + 1); }
+    while (dates.length % 7 !== 0) {
+      const last = dates[dates.length - 1]!;
+      const next = new Date(last); next.setDate(next.getDate() + 1); dates.push(next);
+    }
+
+    let computedMax = 0;
+    const allDays = dates.map(d => {
+      const data = dayMap.get(localDateKey(d)) ?? { totalSec: 0, tasks: new Map<string, number>() };
+      if (data.totalSec > computedMax) computedMax = data.totalSec;
+      return { date: d, totalSec: data.totalSec, tasks: data.tasks };
+    });
+
+    const computedWeeks: { days: { date: Date; totalSec: number; tasks: Map<string, number> }[] }[] = [];
+    for (let i = 0; i < allDays.length; i += 7) computedWeeks.push({ days: allDays.slice(i, i + 7) });
+
+    const monthFormatter = new Intl.DateTimeFormat(undefined, { month: "short" });
+    const labels: { weekIndex: number; label: string }[] = [];
+    let lastMonth = -1;
+    computedWeeks.forEach((week, weekIndex) => {
+      const month = week.days[0]!.date.getMonth();
+      if (weekIndex === 0) { lastMonth = month; labels.push({ weekIndex, label: monthFormatter.format(week.days[0]!.date) }); return; }
+      if (month !== lastMonth) { lastMonth = month; labels.push({ weekIndex, label: monthFormatter.format(week.days[0]!.date) }); }
+    });
+
+    // Global stats
+    const totalFocusSec = Array.from(dayMap.values()).reduce((a, d) => a + d.totalSec, 0);
+    let streakDays = 0;
+    const todayKey = localDateKey(new Date());
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(today); d.setDate(d.getDate() - i);
+      if ((dayMap.get(localDateKey(d))?.totalSec ?? 0) > 0) streakDays++;
+      else break;
+    }
+
+    return { weeks: computedWeeks, monthLabels: labels, maxSec: computedMax, totalFocusSec, streakDays };
+  }, [currentAccountId, tick]);
+
+  const dayFormatter = useMemo(() => new Intl.DateTimeFormat(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" }), []);
+
+  // Color level: 0-4 based on hours thresholds (not proportional to max)
+  const levelFor = (sec: number, filterHr: HourFilter | null) => {
+    if (sec <= 0) return 0;
+    const hr = sec / 3600;
+    if (filterHr !== null) {
+      // In filter mode: highlight only days that meet the threshold
+      return hr >= filterHr ? 4 : 1;
+    }
+    // Normal mode: proportional shading
+    if (maxSec <= 0) return 0;
+    const scaled = Math.ceil((sec / maxSec) * 4);
+    return Math.max(1, Math.min(4, scaled));
+  };
+
+  const weekdayLabels = [
+    { row: 1, label: "Mon" },
+    { row: 3, label: "Wed" },
+    { row: 5, label: "Fri" },
+  ];
+
+  const bestDayHr = Math.round(maxSec / 3600 * 10) / 10;
+  const totalHr = Math.round(totalFocusSec / 3600 * 10) / 10;
+
+  return (
+    <TooltipProvider delayDuration={50}>
+      <div className="glass-panel rounded-2xl p-5">
+        {/* Header */}
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Clock className="size-5" style={{ color: "oklch(0.75 0.17 58.5)" }} />
+              <h3 className="text-xl font-bold">{userName}'s Focus Time</h3>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {totalHr}h total · {streakDays} day streak · best day {bestDayHr}h
+            </p>
+          </div>
+
+          {/* Hour-filter toggle buttons */}
+          <div className="flex flex-col items-end gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Show days with ≥</span>
+            <div className="flex items-center gap-1.5">
+              {HOUR_FILTERS.map(hr => (
+                <button
+                  key={hr}
+                  type="button"
+                  onClick={() => setActiveFilter(f => f === hr ? null : hr)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-black transition-all duration-150 ${
+                    activeFilter === hr
+                      ? "shadow-[0_0_14px_rgba(245,158,11,0.5)]"
+                      : "hover:opacity-90"
+                  }`}
+                  style={activeFilter === hr
+                    ? { background: "oklch(0.75 0.17 58.5)", color: "oklch(0.13 0.025 70.4)" }
+                    : { background: "oklch(0.259 0.034 174.3)", color: "oklch(0.715 0.026 174.8)" }
+                  }
+                >
+                  {hr}h
+                </button>
+              ))}
+              {activeFilter !== null && (
+                <button
+                  type="button"
+                  onClick={() => setActiveFilter(null)}
+                  className="rounded-lg px-2 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition"
+                  aria-label="Clear filter"
+                >
+                  ✕ clear
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Filter status bar */}
+        {activeFilter !== null && (
+          <div
+            className="mb-3 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold"
+            style={{ background: "oklch(0.28 0.06 65)", color: "oklch(0.88 0.14 65)" }}
+          >
+            <span style={{ color: "oklch(0.75 0.17 58.5)" }}>●</span>
+            Highlighting days with {activeFilter}+ hours of focus time
+            {(() => {
+              const count = weeks.flatMap(w => w.days).filter(d => d.totalSec / 3600 >= activeFilter!).length;
+              return <span className="ml-auto font-black">{count} {count === 1 ? "day" : "days"}</span>;
+            })()}
+          </div>
+        )}
+
+        {/* Legend */}
+        <div className="mb-3 hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+          <span>Less</span>
+          <span className="time-heat-square time-heat-0" aria-hidden />
+          <span className="time-heat-square time-heat-1" aria-hidden />
+          <span className="time-heat-square time-heat-2" aria-hidden />
+          <span className="time-heat-square time-heat-3" aria-hidden />
+          <span className="time-heat-square time-heat-4" aria-hidden />
+          <span>More</span>
+          <span className="ml-4 text-[10px] text-muted-foreground/60">(focus hours per day)</span>
+        </div>
+
+        {/* Heatmap grid */}
+        <div className="relative overflow-x-auto">
+          <div className="inline-block">
+            <div className="gh-heatmap-months">
+              {monthLabels.map(m => (
+                <div key={`${m.weekIndex}-${m.label}`} className="gh-heatmap-month" style={{ gridColumnStart: m.weekIndex + 2 }}>
+                  {m.label}
+                </div>
+              ))}
+            </div>
+
+            <div className="gh-heatmap-body">
+              <div className="gh-heatmap-ylabels">
+                {weekdayLabels.map(w => (
+                  <div key={w.label} className="gh-heatmap-ylabel" style={{ gridRowStart: w.row + 1 }}>{w.label}</div>
+                ))}
+              </div>
+
+              <div className="gh-heatmap-weeks" role="grid" aria-label="Focus time calendar">
+                {weeks.map((week, weekIndex) => (
+                  <div key={weekIndex} className="gh-heatmap-week" role="row">
+                    {week.days.map((d, dayIndex) => {
+                      const level = levelFor(d.totalSec, activeFilter);
+                      const isDimmed = activeFilter !== null && d.totalSec > 0 && d.totalSec / 3600 < activeFilter;
+                      const sortedTasks = Array.from(d.tasks.entries()).sort((a, b) => b[1] - a[1]);
+                      return (
+                        <Tooltip key={dayIndex}>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className={`time-heat-square time-heat-${level} transition-all duration-150 hover:scale-110 ${
+                                isDimmed ? "opacity-25" : ""
+                              } ${
+                                activeFilter !== null && level === 4 ? "ring-1 ring-amber-400/50" : ""
+                              }`}
+                              aria-label={`${fmtDuration(d.totalSec)} focus on ${dayFormatter.format(d.date)}`}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="top"
+                            align="center"
+                            className="z-50 max-w-[280px] min-w-[200px] rounded-lg border border-border bg-popover px-3 py-2.5 text-left text-popover-foreground shadow-xl animate-in fade-in-50 duration-150"
+                          >
+                            <div className="text-xs text-muted-foreground mb-1 font-semibold">
+                              {dayFormatter.format(d.date)}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-sm font-black border-b border-border/50 pb-1.5 mb-1.5">
+                              <Clock className="size-3.5" style={{ color: "oklch(0.75 0.17 58.5)" }} />
+                              <span style={{ color: d.totalSec > 0 ? "oklch(0.75 0.17 58.5)" : undefined }}>
+                                {d.totalSec > 0 ? fmtDuration(d.totalSec) : "No focus sessions"}
+                              </span>
+                              {d.totalSec > 0 && (
+                                <span className="ml-auto text-[10px] font-semibold text-muted-foreground">
+                                  {Math.round(d.totalSec / 3600 * 10) / 10}h
+                                </span>
+                              )}
+                            </div>
+                            {sortedTasks.length > 0 && (
+                              <div className="text-[11px]">
+                                <span className="font-bold" style={{ color: "oklch(0.75 0.17 58.5)" }}>Tasks:</span>
+                                <ul className="mt-1 space-y-0.5">
+                                  {sortedTasks.map(([task, sec]) => (
+                                    <li key={task} className="flex items-center justify-between gap-2">
+                                      <span className="truncate max-w-[160px] text-muted-foreground" title={task}>{task}</span>
+                                      <span className="font-mono font-bold tabular-nums shrink-0" style={{ color: "oklch(0.75 0.17 58.5)" }}>
+                                        {fmtDuration(sec)}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {d.totalSec > 0 && sortedTasks.length === 0 && (
+                              <p className="text-[11px] text-muted-foreground">No task label recorded</p>
+                            )}
+                            {activeFilter !== null && d.totalSec > 0 && (
+                              <div className="mt-1.5 text-[10px] font-semibold" style={{
+                                color: d.totalSec / 3600 >= activeFilter
+                                  ? "oklch(0.75 0.17 58.5)"
+                                  : "oklch(0.577 0.245 27.325)"
+                              }}>
+                                {d.totalSec / 3600 >= activeFilter
+                                  ? `✓ Meets ${activeFilter}h threshold`
+                                  : `✗ Below ${activeFilter}h threshold`}
+                              </div>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </TooltipProvider>
+  );
+}
+
+// ─── DS Topics ───────────────────────────────────────────────────────────────
 
 const DS_TOPICS = ["Arrays", "Strings", "Hashing", "Two Pointers", "Sorting", "Binary Search", "Sliding Window", "Linked List", "Stack", "Queue", "Trees", "Graphs", "Heap", "DP", "Greedy", "Backtracking", "Recursion", "Math", "Bit Manipulation", "Other"] as const;
 type DsTopic = typeof DS_TOPICS[number];
