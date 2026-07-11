@@ -2853,12 +2853,11 @@ function Heatmap({
 
 // ─── Time Heatmap ────────────────────────────────────────────────────────────
 
-const HOUR_FILTERS = [4, 6, 8, 10] as const;
-type HourFilter = (typeof HOUR_FILTERS)[number];
+// Free-form hour filter – any value from 0.5 to 24
 
 function TimeHeatmap({ currentAccountId, userName }: { currentAccountId: string; userName: string }) {
   const [tick, setTick] = useState(0);
-  const [activeFilter, setActiveFilter] = useState<HourFilter | null>(null);
+  const [activeFilter, setActiveFilter] = useState<number | null>(null);
 
   // Sync from cloud once on mount, then re-render
   useEffect(() => {
@@ -2983,37 +2982,34 @@ function TimeHeatmap({ currentAccountId, userName }: { currentAccountId: string;
             </p>
           </div>
 
-          {/* Hour-filter toggle buttons */}
-          <div className="flex flex-col items-end gap-2">
+          {/* Hour-filter — plain number input */}
+          <div className="flex flex-col items-end gap-1.5">
             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Show days with ≥</span>
-            <div className="flex items-center gap-1.5">
-              {HOUR_FILTERS.map(hr => (
-                <button
-                  key={hr}
-                  type="button"
-                  onClick={() => setActiveFilter(f => f === hr ? null : hr)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-black transition-all duration-150 ${
-                    activeFilter === hr
-                      ? "shadow-[0_0_14px_rgba(245,158,11,0.5)]"
-                      : "hover:opacity-90"
-                  }`}
-                  style={activeFilter === hr
-                    ? { background: "oklch(0.75 0.17 58.5)", color: "oklch(0.13 0.025 70.4)" }
-                    : { background: "oklch(0.259 0.034 174.3)", color: "oklch(0.715 0.026 174.8)" }
-                  }
-                >
-                  {hr}h
-                </button>
-              ))}
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-background/70 px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-primary/30 transition">
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                placeholder="e.g. 3"
+                value={activeFilter ?? ""}
+                onChange={e => {
+                  const raw = e.target.value;
+                  if (raw === "") { setActiveFilter(null); return; }
+                  const v = parseFloat(raw);
+                  if (!isNaN(v) && v >= 0) setActiveFilter(v);
+                }}
+                className="w-14 bg-transparent text-sm font-bold outline-none text-right"
+                style={{ color: "oklch(0.75 0.17 58.5)" }}
+                aria-label="Hour threshold"
+              />
+              <span className="text-xs font-semibold text-muted-foreground">h</span>
               {activeFilter !== null && (
                 <button
                   type="button"
                   onClick={() => setActiveFilter(null)}
-                  className="rounded-lg px-2 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition"
+                  className="ml-1 text-muted-foreground hover:text-foreground transition text-xs"
                   aria-label="Clear filter"
-                >
-                  ✕ clear
-                </button>
+                >✕</button>
               )}
             </div>
           </div>
