@@ -18,6 +18,7 @@ import {
   Loader2,
   CheckCircle2,
   Clock,
+  ClipboardList,
   LogOut,
   Medal,
   Pause,
@@ -84,6 +85,7 @@ import { FocusTodo, FocusAnalytics } from "@/components/Focus";
 import { RevisionView } from "@/components/Revision";
 import { PlatformStats } from "@/components/PlatformStats";
 import { StudySession } from "@/components/StudySession";
+import { Todos } from "@/components/Todos";
 import { loadFocusSessions, fmtDuration, syncFocusSessionsFromCloud } from "@/lib/focus";
 
 type ViewId = (typeof navItems)[number]["id"];
@@ -98,7 +100,7 @@ const navItems = [
   { id: "problems", label: "My Problems", icon: BookOpenCheck },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "platform-stats", label: "Platform Stats", icon: Globe },
-  { id: "hall-of-fame", label: "Hall of Fame", icon: Medal },
+  { id: "todos", label: "Todos", icon: ClipboardList },
   { id: "requests", label: "Squad Requests", icon: UserPlus },
   { id: "profile", label: "Profile", icon: User },
 ] as const;
@@ -556,7 +558,7 @@ function CompetitionApp({ currentAccountId, data, onRefresh, onSync, onLogout }:
         {view === "problems" && <MyProblems currentAccountId={currentAccountId} problems={squadData.problems} revisions={squadData.revisions} />}
         {view === "analytics" && <Analytics currentAccountId={currentAccountId} users={squadUsers} problems={squadData.problems} />}
         {view === "platform-stats" && <PlatformStats currentAccountId={currentAccountId} data={squadData} users={squadUsers} onRefresh={onRefresh} />}
-        {view === "hall-of-fame" && <HallOfFame users={squadUsers} problems={squadData.problems} revisions={squadData.revisions} />}
+        {view === "todos" && <Todos currentAccountId={currentAccountId} />}
         {view === "requests" && <SquadRequests currentAccountId={currentAccountId} users={allUsers} onRefresh={onRefresh} />}
         {view === "profile" && <Profile currentAccountId={currentAccountId} profiles={data.profiles} users={squadUsers} problems={squadData.problems} revisions={squadData.revisions} onRefresh={onRefresh} onLogout={onLogout} />}
       </main>
@@ -3562,44 +3564,6 @@ function ProblemList({
         </div>
       )}
     </>
-  );
-}
-
-function HallOfFame({ users, problems, revisions = [] }: { users: MutualUser[]; problems: Problem[]; revisions?: Revision[] }) {
-  const ranked = [...users].map(user => ({
-    ...user,
-    stats: userStats(problems, user.id, revisions)
-  })).sort((a, b) => b.stats.streak - a.stats.streak);
-
-  return (
-    <section className="glass-panel animate-enter rounded-2xl p-6">
-      <div className="mb-8 text-center">
-        <Medal className="mx-auto mb-4 size-12 text-primary" />
-        <h3 className="text-4xl font-black">The Main Hall</h3>
-        <p className="mt-2 text-muted-foreground text-lg">The arena of ultimate consistency.</p>
-      </div>
-
-      <div className="grid gap-4">
-        {ranked.map((user, index) => (
-          <div key={user.id} className={`flex items-center justify-between rounded-2xl p-5 transition-all ${index === 0 ? "bg-primary/20 border-2 border-primary shadow-glow scale-[1.02]" : "bg-card/70 border border-border"}`}>
-            <div className="flex items-center gap-6">
-              <span className="text-4xl font-black italic text-primary/50">#{index + 1}</span>
-              <div>
-                <p className="text-xl font-bold">{user.emoji} {user.name}</p>
-                <p className="text-sm text-muted-foreground">Best Streak: {user.stats.streak} days</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="flex items-center justify-end gap-2 text-3xl font-black">
-                <Flame className={user.stats.streak > 10 ? "text-orange-500 animate-bounce" : "text-primary"} />
-                {user.stats.streak}
-              </div>
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Current Streak</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }
 
